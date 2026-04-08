@@ -178,24 +178,30 @@ function App() {
   }
 
   const addDomainAndLog = async () => {
-    if (tabId == null) return;
     setBusy(true);
     setMsg(null);
     try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id || !tab.url?.startsWith("http")) {
+        setMsg("Focus an http(s) tab (the page you want to allowlist), then try again.");
+        return;
+      }
       const r: {
         ok?: boolean;
         logged?: boolean;
         warning?: string;
         error?: string;
-      } = await chrome.runtime.sendMessage({ type: "ADD_DOMAIN_AND_LOG", tabId });
+      } = await chrome.runtime.sendMessage({ type: "ADD_DOMAIN_AND_LOG", tabId: tab.id });
       if (r?.ok) {
         if (r.warning) setMsg(r.warning);
         else if (r.logged) setMsg("Domain added to allowlist and this page logged.");
         else setMsg("Domain added to allowlist.");
         await load();
       } else {
-        setMsg(r?.error ?? "Could not add domain.");
+        setMsg(r?.error?.trim() ? r.error : "Could not add domain.");
       }
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }

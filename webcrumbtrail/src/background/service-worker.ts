@@ -160,45 +160,58 @@ async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSum
 async function addDomainAndLogTab(
   tabId: number,
 ): Promise<{ ok: true; logged: boolean; warning?: string } | { ok: false; error: string }> {
-  const tab = await chrome.tabs.get(tabId);
-  const url = tab.url;
-  if (!url?.startsWith("http")) {
-    return { ok: false, error: "Only http(s) pages can be allowlisted." };
-  }
-  let hostname: string;
   try {
-    hostname = new URL(url).hostname.toLowerCase();
-  } catch {
-    return { ok: false, error: "Invalid page URL." };
-  }
-  if (!hostname) {
-    return { ok: false, error: "Could not read hostname." };
-  }
+    let tab: chrome.tabs.Tab;
+    try {
+      tab = await chrome.tabs.get(tabId);
+    } catch {
+      return {
+        ok: false,
+        error: "Could not read that tab. Close the popup, focus the page you want, and try again.",
+      };
+    }
+    const url = tab.url;
+    if (!url?.startsWith("http")) {
+      return { ok: false, error: "Only http(s) pages can be allowlisted." };
+    }
+    let hostname: string;
+    try {
+      hostname = new URL(url).hostname.toLowerCase();
+    } catch {
+      return { ok: false, error: "Invalid page URL." };
+    }
+    if (!hostname) {
+      return { ok: false, error: "Could not read hostname." };
+    }
 
-  const settings = await loadSettings();
-  const hostNorm = hostname;
-  const rules: DomainRule[] = settings.domainRules.map((r) => ({ ...r }));
-  const idx = rules.findIndex((r) => r.pattern.trim().toLowerCase() === hostNorm);
-  if (idx >= 0) {
-    rules[idx] = { ...rules[idx], enabled: true };
-  } else {
-    rules.push({ id: crypto.randomUUID(), pattern: hostname, enabled: true });
-  }
-  await saveSettings({ ...settings, domainRules: rules });
+    const settings = await loadSettings();
+    const hostNorm = hostname;
+    const rules: DomainRule[] = settings.domainRules.map((r) => ({ ...r }));
+    const idx = rules.findIndex((r) => r.pattern.trim().toLowerCase() === hostNorm);
+    if (idx >= 0) {
+      rules[idx] = { ...rules[idx], enabled: true };
+    } else {
+      rules.push({ id: crypto.randomUUID(), pattern: hostname, enabled: true });
+    }
+    await saveSettings({ ...settings, domainRules: rules });
 
-  const after = await loadSettings();
-  const incognito = tab.incognito ?? false;
-  if (incognito && !after.allowIncognitoLogging) {
-    return {
-      ok: true,
-      logged: false,
-      warning:
-        "Domain added. Incognito visits are not logged — enable “Allow incognito logging” in Settings or use a normal window.",
-    };
-  }
+    const after = await loadSettings();
+    const incognito = tab.incognito ?? false;
+    if (incognito && !after.allowIncognitoLogging) {
+      return {
+        ok: true,
+        logged: false,
+        warning:
+          "Domain added. Incognito visits are not logged — enable “Allow incognito logging” in Settings or use a normal window.",
+      };
+    }
 
-  await handleVisit(tabId, url, tab.title ?? "", incognito);
-  return { ok: true, logged: true };
+    await handleVisit(tabId, url, tab.title ?? "", incognito);
+    return { ok: true, logged: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg || "Something went wrong while saving the allowlist." };
+  }
 }
 
 async function pageStatusForUrl(url: string): Promise<MsgPageStatusReply> {
@@ -324,7 +337,14 @@ chrome.runtime.onMessage.addListener((message: { type: string; [k: string]: unkn
     }
     if (message.type === "ADD_DOMAIN_AND_LOG") {
       const m = message as unknown as { tabId: number };
-      void addDomainAndLogTab(m.tabId).then(sendResponse);
+      void addDomainAndLogTab(m.tabId)
+        .then(sendResponse)
+        .catch((e: unknown) =>
+          sendResponse({
+            ok: false,
+            error: e instanceof Error ? e.message : String(e),
+          }),
+        );
       return true;
     }
     if (message.type === "REQUEST_SUMMARY") {

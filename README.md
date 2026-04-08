@@ -1,14 +1,38 @@
 # WebCrumbTrail
 
-**WebCrumbTrail** is a local-first Chrome/Brave extension (Manifest V3) that logs visits only on **allowlisted domains** and supports **manual** (web chat) or **API** summarisation (OpenAI cloud or **local Ollama**) when you explicitly request it.
+WebCrumbTrail is a local-first Chrome and Brave extension (Manifest V3). It records page visits only for hostnames you allow, and it can attach summaries when you ask for them. Summaries never run automatically.
 
-| Resource | Location |
-|----------|----------|
-| **Install & Ollama setup** | [`webcrumbtrail/README.md`](./webcrumbtrail/README.md) |
-| Architecture | [`webcrumbtrail/DESIGN.md`](./webcrumbtrail/DESIGN.md) |
-| Original specification | [`prompt.md`](./prompt.md) |
-| Push to GitHub | [`docs/GITHUB.md`](./docs/GITHUB.md) |
-| License | [MIT](./LICENSE) |
+## What it does
+
+Visit logging
+
+- Tracks pages whose hostname matches your allowlist (exact names or patterns such as `*.example.com`).
+- Deduplicates visits within a configurable time window so repeated loads do not inflate counts without reason.
+- Stores pages and visit history in IndexedDB on your machine.
+- Optional logging in Incognito windows (off by default; enable in Settings if you want it).
+
+Allowlist without opening Settings
+
+- On a page that is not yet allowlisted, open the extension popup and use “Add this domain to allowlist & log page”. That adds the current tab’s hostname to the list, enables it if the rule already existed but was off, and records this visit. Use a normal http(s) tab; the hostname must match what you see in the address bar (for example `www.example.com` and `example.com` are different rules).
+
+Popup
+
+- Shows whether the current site is allowlisted and whether the page is already stored.
+- OpenAI-compatible cloud API or local Ollama summarisation on demand, plus a manual path that copies a prompt for a browser chat and lets you paste the reply back.
+
+Report viewer
+
+- Open from the popup. Filter and sort the table, open the detail pane for one page, export filtered rows as CSV, or export or import full JSON backups.
+- Delete stored pages from the table or the detail pane. Deleting removes that page and all of its visit events. Turn on “Enable delete” at the top of the report before delete buttons work, so stray clicks do not remove data.
+
+Options
+
+- Edit the allowlist, dedupe interval, summarisation provider, API or Ollama endpoints, and Incognito behaviour.
+
+Other
+
+- Context menu entry to request a summary for the current page (when summarisation is enabled).
+- No telemetry.
 
 ## Quick install
 
@@ -18,12 +42,20 @@ npm install
 npm run build
 ```
 
-Load **unpacked** from **`webcrumbtrail/dist`** in `chrome://extensions` (enable **Developer mode**).
+In the browser, open the extensions page (`chrome://extensions` or `brave://extensions`), enable developer mode, choose Load unpacked, and select the `webcrumbtrail/dist` folder inside this repository.
 
-**Ollama (local summaries):** install [Ollama](https://ollama.com), pull a model (`ollama pull llama3.2`), set `OLLAMA_ORIGINS='chrome-extension://*'` when starting Ollama (avoids **403** from the extension), then in the extension choose **Ollama (local)** under Settings → Summarisation and use **Test API connection**. Full steps: **[`webcrumbtrail/README.md`](./webcrumbtrail/README.md)**.
+Local Ollama needs the Chrome extension origin allowed (otherwise you may see HTTP 403). OpenAI or other cloud APIs need a key in Settings when you use the cloud provider. Step-by-step setup, including Ollama and troubleshooting, is in [`webcrumbtrail/README.md`](./webcrumbtrail/README.md).
 
-**OpenAI (cloud):** add an API key under **Settings** when **OpenAI (cloud API)** is selected. Keys: [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+## Repository layout
+
+| Topic | Location |
+|-------|----------|
+| Install and Ollama notes | [`webcrumbtrail/README.md`](./webcrumbtrail/README.md) |
+| Technical design | [`webcrumbtrail/DESIGN.md`](./webcrumbtrail/DESIGN.md) |
+| Original build specification | [`prompt.md`](./prompt.md) |
+| Publishing to GitHub | [`docs/GITHUB.md`](./docs/GITHUB.md) |
+| License | [MIT](./LICENSE) |
 
 ## GitHub
 
-This repo is intended to be pushed to a public GitHub remote. See [`docs/GITHUB.md`](./docs/GITHUB.md) for `git remote` and `git push`. If you use [GitHub CLI](https://cli.github.com/) (`gh`), ensure your token includes the **`repo`** scope (`gh auth refresh -h github.com -s repo`) so create/push works.
+To connect a remote and push, see [`docs/GITHUB.md`](./docs/GITHUB.md). If you use the GitHub CLI, your token needs the `repo` scope for create and push.
