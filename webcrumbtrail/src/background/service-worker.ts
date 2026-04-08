@@ -322,7 +322,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: "dj-summarize",
-      title: "Request Domain Journal summary for this page",
+      title: "Request WebCrumbTrail summary for this page",
       contexts: ["page"],
     });
   });

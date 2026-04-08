@@ -134,7 +134,7 @@ function App() {
         description,
       });
       if (r?.ok) {
-        setMsg("Saved to Domain Journal.");
+        setMsg("Saved to WebCrumbTrail.");
         await load();
       } else setMsg(r?.error ?? "Failed to save.");
     } finally {
@@ -166,7 +166,7 @@ function App() {
   return (
     <div style={bodyStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <strong>Domain Journal</strong>
+        <strong>WebCrumbTrail</strong>
         <button type="button" className="secondary" style={{ padding: "0.25rem 0.5rem", fontSize: 12 }} onClick={openSettings}>
           Settings
         </button>

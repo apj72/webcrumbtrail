@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Domain Journal",
+  "name": "WebCrumbTrail",
   "version": "0.1.0",
-  "description": "Local-first journal of visits to allowlisted domains with optional manual summaries.",
+  "description": "Local-first trail of visits to allowlisted domains with optional manual summaries.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Domain Journal"
+    "default_title": "WebCrumbTrail"
   },
   "options_ui": {
     "page": "options.html",

@@ -1,10 +1,15 @@
 import { DEFAULT_SETTINGS, type SettingsRecord } from "../../shared/types";
 
-const KEY = "domainJournalSettings";
+const KEY = "webcrumbtrailSettings";
+const LEGACY_KEY = "domainJournalSettings";
 
 export async function loadSettings(): Promise<SettingsRecord> {
-  const r = await chrome.storage.local.get(KEY);
-  const raw = r[KEY] as SettingsRecord | undefined;
+  const r = await chrome.storage.local.get([KEY, LEGACY_KEY]);
+  const raw = (r[KEY] ?? r[LEGACY_KEY]) as SettingsRecord | undefined;
+  if (raw && r[LEGACY_KEY] != null && r[KEY] == null) {
+    await chrome.storage.local.set({ [KEY]: raw });
+    await chrome.storage.local.remove(LEGACY_KEY);
+  }
   if (!raw) return { ...DEFAULT_SETTINGS, domainRules: [...DEFAULT_SETTINGS.domainRules] };
   return mergeDefaults(raw);
 }

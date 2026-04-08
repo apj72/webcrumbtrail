@@ -79,7 +79,7 @@ function App() {
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ marginTop: 0, fontSize: 22 }}>Domain Journal settings</h1>
+      <h1 style={{ marginTop: 0, fontSize: 22 }}>WebCrumbTrail settings</h1>
 
       <section className="card" style={{ marginBottom: 16 }}>
         <h2 style={{ marginTop: 0, fontSize: 16 }}>Domain allowlist</h2>
@@ -287,7 +287,7 @@ function App() {
             </p>
             <p style={{ color: "var(--muted)", fontSize: 12, borderLeft: "3px solid var(--border)", paddingLeft: 10 }}>
               <strong>403 from Ollama?</strong> The extension uses a <code>chrome-extension://</code> origin. Quit Ollama, set{" "}
-              <code>OLLAMA_ORIGINS</code> to allow <code>chrome-extension://*</code> (see README: <em>Ollama 403 from the extension</em>), then restart Ollama.
+              <code>OLLAMA_ORIGINS</code> to allow <code>chrome-extension://*</code> (see README: <em>Ollama 403 from WebCrumbTrail</em>), then restart Ollama.
             </p>
           </div>
         )}

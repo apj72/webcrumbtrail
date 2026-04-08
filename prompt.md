@@ -1,6 +1,6 @@
-# Domain Journal — Cursor Build Prompt
+# WebCrumbTrail — Cursor Build Prompt
 
-Build a local-first Chrome/Brave browser extension called **Domain Journal**.
+Build a local-first Chrome/Brave browser extension called **WebCrumbTrail**.
 
 ## Goal
 Create a browser extension that automatically logs pages I visit, but only for a configurable allowlist of domains. The tool is for knowledge work and memory aid. It must track unique pages, revisit history, and page metadata. It must include a report viewer where I can browse what I looked at and click links back to the original pages.

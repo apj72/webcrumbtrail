@@ -5,7 +5,7 @@ export function buildChatGptJournalDocument(args: {
   visibleText: string;
 }): string {
   const body = args.visibleText.slice(0, 100_000);
-  return `You are helping me with a personal reading journal (Domain Journal). Using ONLY the page information below, reply with EXACTLY this format (two labelled lines, then a blank line):
+  return `You are helping me with a personal reading journal (WebCrumbTrail). Using ONLY the page information below, reply with EXACTLY this format (two labelled lines, then a blank line):
 
 TITLE: <short descriptive title, max ~100 characters>
 DESCRIPTION: <one or two sentences stating what this page covers and why it might matter for my work>

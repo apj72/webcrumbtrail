@@ -159,7 +159,7 @@ function App() {
     const blob = new Blob([JSON.stringify(r.bundle, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `domain-journal-export-${Date.now()}.json`;
+    a.download = `webcrumbtrail-export-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -169,7 +169,7 @@ function App() {
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `domain-journal-pages-${Date.now()}.csv`;
+    a.download = `webcrumbtrail-pages-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -214,7 +214,7 @@ function App() {
     <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr minmax(380px, 460px)" : "1fr", minHeight: "100vh" }}>
       <div style={{ padding: 16, borderRight: selected ? "1px solid var(--border)" : undefined }}>
         <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: 16 }}>
-          <h1 style={{ margin: 0, fontSize: 20 }}>Domain Journal</h1>
+          <h1 style={{ margin: 0, fontSize: 20 }}>WebCrumbTrail</h1>
           <button type="button" className="secondary" onClick={() => void chrome.runtime.openOptionsPage()}>
             Settings
           </button>
@@ -403,7 +403,7 @@ function App() {
           <div className="card" style={{ marginBottom: 12 }}>
             <h3 style={{ marginTop: 0, fontSize: 14 }}>Manual journal (web chat)</h3>
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 0 }}>
-              Open this page in a tab, click the Domain Journal icon, use <strong>Copy prompt for web chat</strong>, then paste the reply here.
+              Open this page in a tab, click the WebCrumbTrail icon, use <strong>Copy prompt for web chat</strong>, then paste the reply here.
             </p>
             <button type="button" className="secondary" style={{ marginBottom: 8 }} onClick={() => openOriginal(selected.canonical_url)}>
               Open this URL in a new tab

@@ -5,5 +5,5 @@
 !.env.example
 
 # Extension build output & deps
-domain-journal/node_modules/
-domain-journal/dist/
+webcrumbtrail/node_modules/
+webcrumbtrail/dist/

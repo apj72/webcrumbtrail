@@ -1,8 +1,8 @@
-# Domain Journal — Technical design
+# WebCrumbTrail — Technical design
 
 ## Overview
 
-Domain Journal is a Manifest V3 extension built with **Vite**, **React**, and **TypeScript**. The UI uses relative asset paths (`base: './'`) so scripts load correctly under `chrome-extension://` URLs.
+WebCrumbTrail is a Manifest V3 extension built with **Vite**, **React**, and **TypeScript**. The UI uses relative asset paths (`base: './'`) so scripts load correctly under `chrome-extension://` URLs.
 
 ## Components
 

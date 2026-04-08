@@ -1,4 +1,4 @@
-# Domain Journal
+# WebCrumbTrail
 
 Local-first Chrome/Brave extension (Manifest V3) that logs visits to **allowlisted domains only**, with optional **manual** (web chat) or **API** summarisation when you explicitly request it.
 
@@ -16,7 +16,7 @@ From your machine (adjust the path if you cloned elsewhere):
 
 ```bash
 git clone <your-repo-url>
-cd webhistory-memory-aid/domain-journal
+cd WebCrumbTrail/webcrumbtrail
 npm install
 npm run build
 ```
@@ -28,12 +28,12 @@ The production bundle is written to **`dist/`**.
 1. Open **`chrome://extensions`** (Chrome) or **`brave://extensions`** (Brave).  
 2. Turn on **Developer mode** (top right).  
 3. Click **Load unpacked**.  
-4. Select the **`domain-journal/dist`** folder (the one that contains `manifest.json`, `popup.html`, `background.js`, etc.).  
-4. Optional: pin the Domain Journal icon to the toolbar.
+4. Select the **`webcrumbtrail/dist`** folder (the one that contains `manifest.json`, `popup.html`, `background.js`, etc.).  
+5. Optional: pin the WebCrumbTrail icon to the toolbar.
 
 ### 4. First-time configuration
 
-1. Click **Domain Journal → Settings** (from the popup or the extensions list).  
+1. Click **WebCrumbTrail → Settings** (from the popup or the extensions list).  
 2. Under **Domain allowlist**, add the hostnames you want to journal (exact names or `*.example.com`). Save.  
 3. Choose how **API summaries** should run (next section). You can skip API setup and only use **Manual journal (web chat)** in the popup if you prefer.
 
@@ -58,7 +58,7 @@ Best when you want everything to stay on your machine.
 
    On macOS with the GUI app, you can instead run `launchctl setenv OLLAMA_ORIGINS 'chrome-extension://*'` and restart Ollama (may need repeating after reboot). For quick local testing only, `OLLAMA_ORIGINS='*'` is possible but broad.
 
-4. In **Domain Journal → Settings → Summarisation**: select **Ollama (local)**, confirm **Base URL** `http://127.0.0.1:11434/v1` and **Model** matches `ollama list` (e.g. `llama3.2`). Use **Reset Ollama fields to defaults** if needed. **Save settings**.  
+4. In **WebCrumbTrail → Settings → Summarisation**: select **Ollama (local)**, confirm **Base URL** `http://127.0.0.1:11434/v1` and **Model** matches `ollama list` (e.g. `llama3.2`). Use **Reset Ollama fields to defaults** if needed. **Save settings**.  
 5. Click **Test API connection**. You should see a success message.  
 6. On a tracked page, use **Request Ollama summary** in the popup.
 
@@ -78,7 +78,7 @@ Billing and limits are on your OpenAI account; the ChatGPT website subscription 
 
 Use this when you paste into **chatgpt.com** (or similar) and paste the answer back — **no API key**, no Ollama required.
 
-1. Open a tracked page → Domain Journal popup → **Copy prompt for web chat** (includes visible text from your tab; works on VPN/internal sites).  
+1. Open a tracked page → WebCrumbTrail popup → **Copy prompt for web chat** (includes visible text from your tab; works on VPN/internal sites).  
 2. Paste into your chat, get a reply with `TITLE:` / `DESCRIPTION:` lines.  
 3. Paste into **Paste web chat reply** or type **Journal title** / **What the page covers** → **Save manual journal entry**.
 
@@ -95,7 +95,7 @@ Chrome extensions call Ollama with a `chrome-extension://…` origin. Without **
    OLLAMA_ORIGINS='chrome-extension://*' ollama serve
    ```
 
-3. Run **Test API connection** in Domain Journal settings again.
+3. Run **Test API connection** in WebCrumbTrail settings again.
 
 See also **Option A** above for macOS GUI and dev-only `*` origin.
 
@@ -112,7 +112,7 @@ See also **Option A** above for macOS GUI and dev-only `*` origin.
 ## Development
 
 ```bash
-cd domain-journal
+cd webcrumbtrail
 npm install
 npm run build
 ```

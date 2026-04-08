@@ -16,7 +16,7 @@ function formatApiHttpError(status: number, errText: string, baseUrl: string): s
   let msg = `API error ${status}: ${errText.slice(0, 500)}`;
   if (status === 403 && isLikelyLocalOllama(baseUrl)) {
     msg +=
-      " — Ollama blocks unknown browser origins. Allow Chrome extensions: quit Ollama, then start it with OLLAMA_ORIGINS=chrome-extension://* (or OLLAMA_ORIGINS=* for local dev only). On macOS you can use: launchctl setenv OLLAMA_ORIGINS 'chrome-extension://*' then restart the Ollama app. See README (Ollama 403).";
+      " — Ollama blocks unknown browser origins. Allow Chrome extensions: quit Ollama, then start it with OLLAMA_ORIGINS=chrome-extension://* (or OLLAMA_ORIGINS=* for local dev only). On macOS you can use: launchctl setenv OLLAMA_ORIGINS 'chrome-extension://*' then restart the Ollama app. See WebCrumbTrail README (Ollama 403).";
   }
   return msg;
 }
@@ -36,7 +36,7 @@ export async function summarizeWithOpenAICompatible(
 ): Promise<string> {
   const { baseUrl, model, apiKey } = settings;
   if (!apiKey.trim()) {
-    throw new Error("API key is not configured. Add it in Domain Journal settings.");
+    throw new Error("API key is not configured. Add it in WebCrumbTrail settings.");
   }
   const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
   const body = {
