@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { PageRecord, SummaryStatus, VisitEvent } from "../shared/types";
+import type { PageRecord, SettingsRecord, SummaryStatus, VisitEvent } from "../shared/types";
 import { getDB, listVisitsForPage } from "../lib/storage/idb";
+import { parseChatGptJournalReply } from "../lib/chatgpt-journal";
 import { pagesToCsv, importBundle } from "../lib/storage/export-import";
 import "../ui/styles.css";
 
@@ -18,6 +19,35 @@ function statusClass(s: SummaryStatus): string {
   return "";
 }
 
+function truncateText(s: string, max: number): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return t.slice(0, max - 1) + "…";
+}
+
+function SummaryCell({ p }: { p: PageRecord }) {
+  const hasBody = !!(p.latest_summary?.trim() || p.summary_title?.trim());
+  const done = p.summary_status === "completed" && hasBody;
+  if (done) {
+    return (
+      <div style={{ maxWidth: 320 }}>
+        {p.summary_title && <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{p.summary_title}</div>}
+        {p.latest_summary && (
+          <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.4 }}>{truncateText(p.latest_summary, 220)}</div>
+        )}
+        {p.latest_summary_updated_at != null && (
+          <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 6 }}>Updated {formatTime(p.latest_summary_updated_at)}</div>
+        )}
+      </div>
+    );
+  }
+  return (
+    <span className={`badge ${statusClass(p.summary_status)}`} style={{ whiteSpace: "nowrap" }}>
+      {p.summary_status}
+    </span>
+  );
+}
+
 function App() {
   const [pages, setPages] = useState<PageRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -31,6 +61,10 @@ function App() {
   const [visits, setVisits] = useState<VisitEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualDesc, setManualDesc] = useState("");
+  const [pastedReply, setPastedReply] = useState("");
+  const [apiProvider, setApiProvider] = useState<"openai" | "ollama">("openai");
 
   const loadPages = useCallback(async () => {
     const db = await getDB();
@@ -42,7 +76,20 @@ function App() {
     void loadPages();
   }, [loadPages]);
 
+  useEffect(() => {
+    void chrome.runtime.sendMessage({ type: "GET_SETTINGS" }).then((st: SettingsRecord) => {
+      setApiProvider(st.summarizationProvider ?? "openai");
+    });
+  }, []);
+
   const selected = useMemo(() => pages.find((p) => p.id === selectedId) ?? null, [pages, selectedId]);
+
+  useEffect(() => {
+    if (!selected) return;
+    setManualTitle(selected.summary_title ?? "");
+    setManualDesc(selected.latest_summary ?? "");
+    setPastedReply("");
+  }, [selected?.id]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -69,7 +116,10 @@ function App() {
     const toTs = dateTo ? new Date(dateTo).getTime() + 86400000 : null;
 
     let list = pages.filter((p) => {
-      if (q && !p.title.toLowerCase().includes(q) && !p.canonical_url.toLowerCase().includes(q)) return false;
+      const st = (p.summary_title ?? "").toLowerCase();
+      const sm = (p.latest_summary ?? "").toLowerCase();
+      if (q && !p.title.toLowerCase().includes(q) && !p.canonical_url.toLowerCase().includes(q) && !st.includes(q) && !sm.includes(q))
+        return false;
       if (df && p.domain !== df) return false;
       if (summaryFilter && p.summary_status !== summaryFilter) return false;
       if (fromTs != null && p.last_seen_at < fromTs) return false;
@@ -137,12 +187,17 @@ function App() {
     setBusy(true);
     setMsg(null);
     try {
+      const st: SettingsRecord = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" });
+      const prov = st.summarizationProvider ?? "openai";
+      setApiProvider(prov);
       const r = await chrome.runtime.sendMessage({
         type: "REQUEST_SUMMARY",
         tabId: tab.id,
         refresh,
       });
-      setMsg(r?.ok ? "Summary saved." : r?.error ?? "Failed");
+      setMsg(
+        r?.ok ? (prov === "ollama" ? "Ollama summary saved." : "API summary saved.") : r?.error ?? "Failed",
+      );
       await loadPages();
       if (selectedId) {
         const db = await getDB();
@@ -156,7 +211,7 @@ function App() {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 400px" : "1fr", minHeight: "100vh" }}>
+    <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr minmax(380px, 460px)" : "1fr", minHeight: "100vh" }}>
       <div style={{ padding: 16, borderRight: selected ? "1px solid var(--border)" : undefined }}>
         <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: 16 }}>
           <h1 style={{ margin: 0, fontSize: 20 }}>Domain Journal</h1>
@@ -194,7 +249,12 @@ function App() {
         >
           <label>
             Search
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Title or URL" style={{ width: "100%" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Title, URL, or journal text"
+              style={{ width: "100%" }}
+            />
           </label>
           <label>
             Domain
@@ -252,10 +312,10 @@ function App() {
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>
                 <th style={{ padding: "6px 8px" }}>Title</th>
+                <th style={{ padding: "6px 8px", minWidth: 200 }}>Summary</th>
                 <th style={{ padding: "6px 8px" }}>Domain</th>
                 <th style={{ padding: "6px 8px" }}>Visits</th>
                 <th style={{ padding: "6px 8px" }}>Last seen</th>
-                <th style={{ padding: "6px 8px" }}>Summary</th>
               </tr>
             </thead>
             <tbody>
@@ -269,13 +329,13 @@ function App() {
                     borderBottom: "1px solid var(--border)",
                   }}
                 >
-                  <td style={{ padding: "8px", maxWidth: 280 }}>{p.title || "(no title)"}</td>
-                  <td style={{ padding: "8px" }}>{p.domain}</td>
-                  <td style={{ padding: "8px" }}>{p.visit_count}</td>
-                  <td style={{ padding: "8px", whiteSpace: "nowrap" }}>{formatTime(p.last_seen_at)}</td>
-                  <td style={{ padding: "8px" }}>
-                    <span className={`badge ${statusClass(p.summary_status)}`}>{p.summary_status}</span>
+                  <td style={{ padding: "8px", maxWidth: 220, verticalAlign: "top" }}>{p.title || "(no title)"}</td>
+                  <td style={{ padding: "8px", verticalAlign: "top" }}>
+                    <SummaryCell p={p} />
                   </td>
+                  <td style={{ padding: "8px", verticalAlign: "top" }}>{p.domain}</td>
+                  <td style={{ padding: "8px", verticalAlign: "top" }}>{Math.max(1, p.visit_count)}</td>
+                  <td style={{ padding: "8px", whiteSpace: "nowrap", verticalAlign: "top" }}>{formatTime(p.last_seen_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -295,41 +355,30 @@ function App() {
           </p>
           <p style={{ fontSize: 12, color: "var(--muted)" }}>
             First: {formatTime(selected.first_seen_at)} · Last: {formatTime(selected.last_seen_at)} · Visits:{" "}
-            {selected.visit_count}
+            {Math.max(1, selected.visit_count)}
           </p>
           <p>
             <span className={`badge ${statusClass(selected.summary_status)}`}>{selected.summary_status}</span>
           </p>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-            <button type="button" onClick={() => openOriginal(selected.canonical_url)}>
-              Open in new tab
-            </button>
-            <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
-              Open the page in a tab, then use the buttons below to summarise the active tab (must be that page).
-            </p>
-            <button type="button" disabled={busy} onClick={() => void requestSummary(false)}>
-              Request summary (active tab)
-            </button>
-            <button type="button" className="secondary" disabled={busy} onClick={() => void requestSummary(true)}>
-              Refresh summary (active tab)
-            </button>
-          </div>
-          {msg && <p style={{ fontSize: 12, color: "var(--ok)" }}>{msg}</p>}
-
-          {selected.latest_summary && (
+          {(selected.summary_title || selected.latest_summary) && (
             <div className="card" style={{ marginBottom: 12 }}>
-              <h3 style={{ marginTop: 0, fontSize: 14 }}>Latest summary</h3>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  margin: 0,
-                }}
-              >
-                {selected.latest_summary}
-              </pre>
+              <h3 style={{ marginTop: 0, fontSize: 14 }}>Summary</h3>
+              {selected.summary_title && (
+                <p style={{ fontWeight: 600, margin: "0 0 8px" }}>{selected.summary_title}</p>
+              )}
+              {selected.latest_summary && (
+                <pre
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    margin: 0,
+                  }}
+                >
+                  {selected.latest_summary}
+                </pre>
+              )}
               {selected.latest_summary_updated_at && (
                 <p style={{ fontSize: 11, color: "var(--muted)", marginBottom: 0 }}>
                   Updated {formatTime(selected.latest_summary_updated_at)}
@@ -337,6 +386,77 @@ function App() {
               )}
             </div>
           )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+            <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
+              <strong>API summary</strong> (optional): switch to a tab showing this URL, then:
+            </p>
+            <button type="button" disabled={busy} onClick={() => void requestSummary(false)}>
+              {apiProvider === "ollama" ? "Request Ollama summary (active tab)" : "Request API summary (active tab)"}
+            </button>
+            <button type="button" className="secondary" disabled={busy} onClick={() => void requestSummary(true)}>
+              {apiProvider === "ollama" ? "Refresh Ollama summary (active tab)" : "Refresh API summary (active tab)"}
+            </button>
+          </div>
+          {msg && <p style={{ fontSize: 12, color: msg.includes("Failed") || msg.includes("Could not") ? "var(--danger)" : "var(--ok)" }}>{msg}</p>}
+
+          <div className="card" style={{ marginBottom: 12 }}>
+            <h3 style={{ marginTop: 0, fontSize: 14 }}>Manual journal (web chat)</h3>
+            <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 0 }}>
+              Open this page in a tab, click the Domain Journal icon, use <strong>Copy prompt for web chat</strong>, then paste the reply here.
+            </p>
+            <button type="button" className="secondary" style={{ marginBottom: 8 }} onClick={() => openOriginal(selected.canonical_url)}>
+              Open this URL in a new tab
+            </button>
+            <label style={{ marginTop: 8 }}>Paste web chat reply</label>
+            <textarea
+              value={pastedReply}
+              onChange={(e) => setPastedReply(e.target.value)}
+              rows={3}
+              style={{ width: "100%", fontSize: 12 }}
+            />
+            <button
+              type="button"
+              className="secondary"
+              style={{ marginTop: 6 }}
+              onClick={() => {
+                const parsed = parseChatGptJournalReply(pastedReply);
+                if (parsed) {
+                  setManualTitle(parsed.summary_title);
+                  setManualDesc(parsed.description);
+                  setMsg("Parsed TITLE / DESCRIPTION.");
+                } else setMsg("Could not parse TITLE: / DESCRIPTION: lines.");
+              }}
+            >
+              Fill from pasted reply
+            </button>
+            <label style={{ marginTop: 8 }}>Journal title</label>
+            <input value={manualTitle} onChange={(e) => setManualTitle(e.target.value)} style={{ width: "100%" }} />
+            <label>What the page covers</label>
+            <textarea value={manualDesc} onChange={(e) => setManualDesc(e.target.value)} rows={3} style={{ width: "100%", fontSize: 12 }} />
+            <button
+              type="button"
+              style={{ marginTop: 8 }}
+              disabled={busy}
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  setMsg(null);
+                  const r = await chrome.runtime.sendMessage({
+                    type: "SAVE_MANUAL_JOURNAL",
+                    pageId: selected.id,
+                    summaryTitle: manualTitle,
+                    description: manualDesc,
+                  });
+                  setMsg(r?.ok ? "Saved." : r?.error ?? "Failed");
+                  await loadPages();
+                  setBusy(false);
+                })();
+              }}
+            >
+              Save manual journal entry
+            </button>
+          </div>
 
           <h3 style={{ fontSize: 14 }}>Visit timeline</h3>
           <ul style={{ paddingLeft: 18, margin: 0, fontSize: 12 }}>

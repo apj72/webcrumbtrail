@@ -10,7 +10,7 @@ Domain Journal is a Manifest V3 extension built with **Vite**, **React**, and **
 | --- | --- |
 | Service worker | Subscribes to `chrome.tabs.onCompleted` (via `tabs.onUpdated` with `status === 'complete'`); filters by allowlist and incognito policy; writes pages/visits to IndexedDB; handles summarisation via `chrome.scripting.executeScript` to read `document.body.innerText`; exposes messaging for popup/report/options |
 | IndexedDB (`idb`) | Stores `PageRecord` and `VisitEvent`; indexes on domain, last seen, page id, visited_at |
-| `chrome.storage.local` | Stores `SettingsRecord` including API key and domain rules |
+| `chrome.storage.local` | Stores `SettingsRecord` including domain rules, `summarizationProvider` (`openai` \| `ollama`), and separate OpenAI vs Ollama endpoint fields |
 | Popup / Options / Report | React apps; report reads IndexedDB directly (same extension origin) |
 
 ## URL canonicalisation

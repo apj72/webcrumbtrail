@@ -18,9 +18,14 @@ function mergeDefaults(s: Partial<SettingsRecord>): SettingsRecord {
     ...DEFAULT_SETTINGS,
     ...s,
     domainRules: s.domainRules?.length ? s.domainRules : [...DEFAULT_SETTINGS.domainRules],
+    summarizationProvider: s.summarizationProvider ?? DEFAULT_SETTINGS.summarizationProvider,
     openaiCompatible: {
       ...DEFAULT_SETTINGS.openaiCompatible,
       ...s.openaiCompatible,
+    },
+    ollamaLocal: {
+      ...DEFAULT_SETTINGS.ollamaLocal,
+      ...s.ollamaLocal,
     },
   };
 }

@@ -2,10 +2,13 @@ import { hostMatchesRules } from "../lib/allowlist";
 import { canonicalizeUrl } from "../lib/canonicalize";
 import { shouldCountNewVisit } from "../lib/dedupe";
 import { sha256Hex } from "../lib/hash";
-import { getDB, getLastVisitForPage, getPageByCanonical, putPage, addVisit } from "../lib/storage/idb";
+import { buildChatGptJournalDocument } from "../lib/chatgpt-journal";
+import { getDB, getLastVisitForPage, getPageByCanonical, getPageById, putPage, addVisit } from "../lib/storage/idb";
 import { loadSettings, saveSettings } from "../lib/storage/settings";
 import { exportAll } from "../lib/storage/export-import";
-import { summarizeWithOpenAICompatible } from "../lib/summarize/openai-compatible";
+import { effectiveOpenAICompatible } from "../lib/llm-provider";
+import { summarizeWithOpenAICompatible, testOpenAICompatibleConnection } from "../lib/summarize/openai-compatible";
+import type { PageRecord } from "../shared/types";
 import type { MsgPageStatusReply, MsgSummaryResult } from "../shared/messages";
 
 async function handleVisit(
@@ -43,6 +46,7 @@ async function handleVisit(
       last_seen_at: now,
       visit_count: 1,
       content_hash: null,
+      summary_title: null,
       latest_summary: null,
       latest_summary_updated_at: null,
       summary_status: "not_requested",
@@ -114,8 +118,9 @@ async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSum
       title,
       first_seen_at: now,
       last_seen_at: now,
-      visit_count: 0,
+      visit_count: 1,
       content_hash: null,
+      summary_title: null,
       latest_summary: null,
       latest_summary_updated_at: null,
       summary_status: "not_requested",
@@ -132,13 +137,14 @@ async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSum
 
   try {
     const hash = await sha256Hex(text ?? "");
-    const summary = await summarizeWithOpenAICompatible(settings.openaiCompatible, {
+    const summary = await summarizeWithOpenAICompatible(effectiveOpenAICompatible(settings), {
       title,
       text: text ?? "",
       url,
     });
     page.content_hash = hash;
     page.latest_summary = summary;
+    page.summary_title = null;
     page.latest_summary_updated_at = Date.now();
     page.summary_status = "completed";
     await putPage(db, page);
@@ -172,6 +178,92 @@ async function pageStatusForUrl(url: string): Promise<MsgPageStatusReply> {
   return { allowed: true, canonical_url: canonical, page: page ?? null };
 }
 
+async function buildChatGptPromptForTab(
+  tabId: number,
+): Promise<{ ok: true; document: string } | { ok: false; error: string }> {
+  const tab = await chrome.tabs.get(tabId);
+  const url = tab.url;
+  if (!url?.startsWith("http")) return { ok: false, error: "Not a web page." };
+  const [{ result: text } = { result: "" }] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: extractVisibleText,
+  });
+  const document = buildChatGptJournalDocument({
+    pageUrl: url,
+    tabTitle: tab.title ?? "",
+    visibleText: text ?? "",
+  });
+  return { ok: true, document };
+}
+
+async function testLlmFromSettings(): Promise<{ ok: boolean; preview?: string; provider?: string; error?: string }> {
+  try {
+    const settings = await loadSettings();
+    const prov = settings.summarizationProvider ?? "openai";
+    const opts = effectiveOpenAICompatible(settings);
+    const preview = await testOpenAICompatibleConnection(opts);
+    return {
+      ok: true,
+      preview,
+      provider: prov === "ollama" ? "Ollama (local)" : "OpenAI / compatible API",
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function saveManualJournalEntry(input: {
+  pageId?: string;
+  tabId?: number;
+  summaryTitle: string;
+  description: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const summaryTitle = input.summaryTitle.trim();
+  const description = input.description.trim();
+  if (!summaryTitle || !description) {
+    return { ok: false, error: "Title and description are required." };
+  }
+  const db = await getDB();
+  let page: PageRecord | undefined;
+  if (input.pageId) {
+    page = await getPageById(db, input.pageId);
+  } else if (input.tabId != null) {
+    const tab = await chrome.tabs.get(input.tabId);
+    const url = tab.url;
+    if (!url?.startsWith("http")) return { ok: false, error: "Not a web page." };
+    const canonical = canonicalizeUrl(url);
+    page = await getPageByCanonical(db, canonical);
+    if (!page) {
+      const now = Date.now();
+      page = {
+        id: crypto.randomUUID(),
+        canonical_url: canonical,
+        original_url: url,
+        domain: new URL(url).hostname.toLowerCase(),
+        title: tab.title ?? "(no title)",
+        first_seen_at: now,
+        last_seen_at: now,
+        visit_count: 1,
+        content_hash: null,
+        summary_title: null,
+        latest_summary: null,
+        latest_summary_updated_at: null,
+        summary_status: "not_requested",
+      };
+      await putPage(db, page);
+    }
+  } else {
+    return { ok: false, error: "Missing page context." };
+  }
+  if (!page) return { ok: false, error: "Page not found." };
+  page.summary_title = summaryTitle;
+  page.latest_summary = description;
+  page.latest_summary_updated_at = Date.now();
+  page.summary_status = "completed";
+  await putPage(db, page);
+  return { ok: true };
+}
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete") return;
   const u = tab.url;
@@ -201,6 +293,25 @@ chrome.runtime.onMessage.addListener((message: { type: string; [k: string]: unkn
     }
     if (message.type === "EXPORT_JSON") {
       void exportAll().then((bundle) => sendResponse({ ok: true, bundle }));
+      return true;
+    }
+    if (message.type === "BUILD_CHATGPT_PROMPT") {
+      const m = message as unknown as { tabId: number };
+      void buildChatGptPromptForTab(m.tabId).then(sendResponse);
+      return true;
+    }
+    if (message.type === "SAVE_MANUAL_JOURNAL") {
+      const m = message as unknown as {
+        pageId?: string;
+        tabId?: number;
+        summaryTitle: string;
+        description: string;
+      };
+      void saveManualJournalEntry(m).then(sendResponse);
+      return true;
+    }
+    if (message.type === "TEST_LLM_CONNECTION") {
+      void testLlmFromSettings().then(sendResponse);
       return true;
     }
     return false;

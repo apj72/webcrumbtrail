@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { PageRecord, VisitEvent } from "../../shared/types";
 
 const DB_NAME = "domain-journal";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 interface JournalDB extends DBSchema {
   pages: {
@@ -22,14 +22,28 @@ let dbPromise: Promise<IDBPDatabase<JournalDB>> | null = null;
 export function getDB(): Promise<IDBPDatabase<JournalDB>> {
   if (!dbPromise) {
     dbPromise = openDB<JournalDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        const pageStore = db.createObjectStore("pages", { keyPath: "id" });
-        pageStore.createIndex("by-domain", "domain");
-        pageStore.createIndex("by-last-seen", "last_seen_at");
+      async upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          const pageStore = db.createObjectStore("pages", { keyPath: "id" });
+          pageStore.createIndex("by-domain", "domain");
+          pageStore.createIndex("by-last-seen", "last_seen_at");
 
-        const visitStore = db.createObjectStore("visits", { keyPath: "id" });
-        visitStore.createIndex("by-page", "page_id");
-        visitStore.createIndex("by-visited-at", "visited_at");
+          const visitStore = db.createObjectStore("visits", { keyPath: "id" });
+          visitStore.createIndex("by-page", "page_id");
+          visitStore.createIndex("by-visited-at", "visited_at");
+        }
+        if (oldVersion < 2) {
+          const tx = db.transaction("pages", "readwrite");
+          const store = tx.objectStore("pages");
+          let cursor = await store.openCursor();
+          while (cursor) {
+            const p = cursor.value as PageRecord;
+            if (p.visit_count < 1) {
+              await cursor.update({ ...p, visit_count: 1 });
+            }
+            cursor = await cursor.continue();
+          }
+        }
       },
     });
   }

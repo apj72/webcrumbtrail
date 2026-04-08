@@ -18,6 +18,8 @@ export interface PageRecord {
   last_seen_at: number;
   visit_count: number;
   content_hash: string | null;
+  /** Short headline from manual ChatGPT journal flow. */
+  summary_title?: string | null;
   latest_summary: string | null;
   latest_summary_updated_at: number | null;
   summary_status: SummaryStatus;
@@ -37,6 +39,14 @@ export interface OpenAICompatibleSettings {
   apiKey: string;
 }
 
+/** Which backend handles “Request API summary” (both use the same OpenAI-compatible HTTP shape). */
+export type SummarizationProvider = "openai" | "ollama";
+
+export interface OllamaLocalSettings {
+  baseUrl: string;
+  model: string;
+}
+
 export interface SettingsRecord {
   version: number;
   domainRules: DomainRule[];
@@ -46,7 +56,10 @@ export interface SettingsRecord {
   summarizationEnabled: boolean;
   /** Allow logging in incognito when user opts in (requires incognito permission). */
   allowIncognitoLogging: boolean;
+  /** Active provider for API summarisation; OpenAI and Ollama settings are stored separately. */
+  summarizationProvider: SummarizationProvider;
   openaiCompatible: OpenAICompatibleSettings;
+  ollamaLocal: OllamaLocalSettings;
 }
 
 export const DEFAULT_SETTINGS: SettingsRecord = {
@@ -59,9 +72,14 @@ export const DEFAULT_SETTINGS: SettingsRecord = {
   visitDedupeMinutes: 5,
   summarizationEnabled: true,
   allowIncognitoLogging: false,
+  summarizationProvider: "openai",
   openaiCompatible: {
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
     apiKey: "",
+  },
+  ollamaLocal: {
+    baseUrl: "http://127.0.0.1:11434/v1",
+    model: "llama3.2",
   },
 };

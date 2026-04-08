@@ -10,6 +10,11 @@
     "visitDedupeMinutes": 5,
     "summarizationEnabled": true,
     "allowIncognitoLogging": false,
+    "summarizationProvider": "openai",
+    "ollamaLocal": {
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "model": "llama3.2"
+    },
     "openaiCompatible": {
       "baseUrl": "https://api.openai.com/v1",
       "model": "gpt-4o-mini",
@@ -27,6 +32,7 @@
       "last_seen_at": 1712580000000,
       "visit_count": 4,
       "content_hash": null,
+      "summary_title": "Example documentation overview",
       "latest_summary": "- Short paragraph about the topic.\n\n- Key point one\n- Key point two",
       "latest_summary_updated_at": 1712570000000,
       "summary_status": "completed"

@@ -6,6 +6,9 @@ import "../ui/styles.css";
 function App() {
   const [s, setS] = useState<SettingsRecord | null>(null);
   const [saved, setSaved] = useState(false);
+  const [testBusy, setTestBusy] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [testOk, setTestOk] = useState<boolean | null>(null);
 
   useEffect(() => {
     void chrome.runtime.sendMessage({ type: "GET_SETTINGS" }).then((r: SettingsRecord) => setS(r));
@@ -16,6 +19,31 @@ function App() {
     await chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", settings: s });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const testConnection = async () => {
+    if (!s) return;
+    setTestBusy(true);
+    setTestMsg(null);
+    setTestOk(null);
+    try {
+      await chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", settings: s });
+      const r = await chrome.runtime.sendMessage({ type: "TEST_LLM_CONNECTION" });
+      if (r?.ok) {
+        setTestOk(true);
+        setTestMsg(
+          `Connected (${r.provider ?? "API"}). Model replied: ${r.preview ? JSON.stringify(r.preview) : "(empty)"}`,
+        );
+      } else {
+        setTestOk(false);
+        setTestMsg(r?.error ?? "Test failed.");
+      }
+    } catch (e) {
+      setTestOk(false);
+      setTestMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTestBusy(false);
+    }
   };
 
   const addRule = () => {
@@ -129,46 +157,165 @@ function App() {
           Enable summarisation features
         </label>
         <p style={{ color: "var(--muted)", fontSize: 12 }}>
-          When off, no summary requests are sent and UI hides provider options where possible.
+          When off, no API summary requests are sent. Manual ChatGPT copy/paste in the popup is unchanged.
         </p>
-        <label style={{ marginTop: 12 }}>OpenAI-compatible base URL</label>
-        <input
-          style={{ width: "100%" }}
-          value={s.openaiCompatible.baseUrl}
-          onChange={(e) =>
-            setS({
-              ...s,
-              openaiCompatible: { ...s.openaiCompatible, baseUrl: e.target.value },
-            })
-          }
-        />
-        <label style={{ marginTop: 12 }}>Model</label>
-        <input
-          style={{ width: "100%" }}
-          value={s.openaiCompatible.model}
-          onChange={(e) =>
-            setS({
-              ...s,
-              openaiCompatible: { ...s.openaiCompatible, model: e.target.value },
-            })
-          }
-        />
-        <label style={{ marginTop: 12 }}>API key (stored locally)</label>
-        <input
-          style={{ width: "100%" }}
-          type="password"
-          autoComplete="off"
-          value={s.openaiCompatible.apiKey}
-          onChange={(e) =>
-            setS({
-              ...s,
-              openaiCompatible: { ...s.openaiCompatible, apiKey: e.target.value },
-            })
-          }
-        />
-        <p style={{ color: "var(--danger)", fontSize: 12, marginTop: 8 }}>
-          Requesting a summary sends visible page text from your browser to the API above. No automatic uploads occur.
+
+        <fieldset style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, marginTop: 12 }}>
+          <legend style={{ padding: "0 6px", fontSize: 14 }}>API summary provider</legend>
+          <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 0 }}>
+            Choose which backend receives <strong>Request API summary</strong>. OpenAI and Ollama settings are both saved so you can switch anytime.
+          </p>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <input
+              type="radio"
+              name="prov"
+              checked={s.summarizationProvider === "openai"}
+              onChange={() => setS({ ...s, summarizationProvider: "openai", summarizationEnabled: true })}
+            />
+            OpenAI (cloud API)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="radio"
+              name="prov"
+              checked={s.summarizationProvider === "ollama"}
+              onChange={() => setS({ ...s, summarizationProvider: "ollama", summarizationEnabled: true })}
+            />
+            Ollama (local — <code>127.0.0.1</code>)
+          </label>
+        </fieldset>
+
+        {s.summarizationProvider === "openai" && (
+          <div style={{ marginTop: 16 }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 14 }}>OpenAI / OpenAI-compatible (cloud)</h3>
+            <label>OpenAI-compatible base URL</label>
+            <input
+              style={{ width: "100%" }}
+              value={s.openaiCompatible.baseUrl}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  openaiCompatible: { ...s.openaiCompatible, baseUrl: e.target.value },
+                })
+              }
+            />
+            <label style={{ marginTop: 12 }}>Model</label>
+            <input
+              style={{ width: "100%" }}
+              value={s.openaiCompatible.model}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  openaiCompatible: { ...s.openaiCompatible, model: e.target.value },
+                })
+              }
+            />
+            <label style={{ marginTop: 12 }}>API key (stored locally)</label>
+            <input
+              style={{ width: "100%" }}
+              type="password"
+              autoComplete="off"
+              value={s.openaiCompatible.apiKey}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  openaiCompatible: { ...s.openaiCompatible, apiKey: e.target.value },
+                })
+              }
+            />
+            <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 8 }}>
+              Page text is sent to this endpoint when you request an API summary. Use your OpenAI key for api.openai.com or another compatible host.
+            </p>
+          </div>
+        )}
+
+        {s.summarizationProvider === "ollama" && (
+          <div style={{ marginTop: 16 }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 14 }}>Ollama (local)</h3>
+            <p style={{ color: "var(--muted)", fontSize: 12 }}>
+              Install from{" "}
+              <a href="https://ollama.com" target="_blank" rel="noreferrer">
+                ollama.com
+              </a>
+              , run the app, then <code>ollama pull &lt;model&gt;</code>. No API key is used.
+            </p>
+            <button
+              type="button"
+              className="secondary"
+              style={{ marginBottom: 12 }}
+              onClick={() =>
+                setS({
+                  ...s,
+                  summarizationProvider: "ollama",
+                  summarizationEnabled: true,
+                  ollamaLocal: {
+                    baseUrl: "http://127.0.0.1:11434/v1",
+                    model: "llama3.2",
+                  },
+                })
+              }
+            >
+              Reset Ollama fields to defaults
+            </button>
+            <label>Ollama OpenAI-compatible base URL</label>
+            <input
+              style={{ width: "100%" }}
+              value={s.ollamaLocal.baseUrl}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  ollamaLocal: { ...s.ollamaLocal, baseUrl: e.target.value },
+                })
+              }
+            />
+            <label style={{ marginTop: 12 }}>Model name</label>
+            <input
+              style={{ width: "100%" }}
+              value={s.ollamaLocal.model}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  ollamaLocal: { ...s.ollamaLocal, model: e.target.value },
+                })
+              }
+            />
+            <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 8 }}>
+              Must match <code>ollama list</code> (e.g. <code>llama3.2</code> or <code>llama3.2:latest</code>).
+            </p>
+            <p style={{ color: "var(--ok)", fontSize: 12 }}>
+              Traffic stays on your machine; nothing is sent to OpenAI when this provider is selected.
+            </p>
+            <p style={{ color: "var(--muted)", fontSize: 12, borderLeft: "3px solid var(--border)", paddingLeft: 10 }}>
+              <strong>403 from Ollama?</strong> The extension uses a <code>chrome-extension://</code> origin. Quit Ollama, set{" "}
+              <code>OLLAMA_ORIGINS</code> to allow <code>chrome-extension://*</code> (see README: <em>Ollama 403 from the extension</em>), then restart Ollama.
+            </p>
+          </div>
+        )}
+
+        <p style={{ color: "var(--danger)", fontSize: 12, marginTop: 16 }}>
+          Requesting an API summary sends visible page text from your browser to the active provider above. No automatic uploads occur.
         </p>
+
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+          <button type="button" className="secondary" disabled={testBusy} onClick={() => void testConnection()}>
+            {testBusy ? "Testing…" : "Test API connection"}
+          </button>
+          <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 8, marginBottom: 4 }}>
+            Saves settings first, then sends a tiny test message to the <strong>selected</strong> provider (OpenAI or Ollama).
+          </p>
+          {testMsg && (
+            <p
+              style={{
+                fontSize: 12,
+                color: testOk === false ? "var(--danger)" : "var(--ok)",
+                margin: 0,
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {testMsg}
+            </p>
+          )}
+        </div>
       </section>
 
       <button type="button" onClick={() => void save()}>

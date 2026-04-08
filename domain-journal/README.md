@@ -1,80 +1,148 @@
 # Domain Journal
 
-Local-first Chrome/Brave extension (Manifest V3) that logs visits to **allowlisted domains only**, with a **manual** summarisation flow so page text is only sent to an LLM when you explicitly request it.
+Local-first Chrome/Brave extension (Manifest V3) that logs visits to **allowlisted domains only**, with optional **manual** (web chat) or **API** summarisation when you explicitly request it.
 
-## Features
+## Install (from source)
 
-- Configurable domain allowlist (exact hosts and `*.wildcard.com` patterns)
-- URL canonicalisation with optional per-domain rules (Atlassian, SharePoint, docs.redhat.com examples)
-- IndexedDB storage for pages and visits, settings in `chrome.storage.local`
-- Visit deduplication (configurable minute window)
-- Popup: tracking status, canonical URL, visit stats, summary actions
-- Full-page report: search, filters, sort, visit timeline, JSON + CSV export/import
-- OpenAI-compatible summarisation (API key in settings)
-- Optional context menu: “Request Domain Journal summary for this page”
-- No telemetry
+### 1. Prerequisites
 
-## OpenAI API key
+- [Node.js](https://nodejs.org/) 18+ and npm  
+- **Google Chrome** or **Brave**  
+- Git (to clone the repository)
 
-Summaries use the **OpenAI API** (or any **OpenAI-compatible** endpoint you configure). The extension does not ship a key; you create one on your account.
+### 2. Clone and build
 
-1. Sign in at [OpenAI Platform](https://platform.openai.com/).
-2. Go to **[API keys](https://platform.openai.com/api-keys)** (also under **Settings → API keys** in the dashboard).
-3. Click **Create new secret key**, give it a name (e.g. `Domain Journal`), and **copy the key immediately** — you will not see it again.
-4. In the extension: **Domain Journal → Settings**, paste the key into **API key** and save.
+From your machine (adjust the path if you cloned elsewhere):
 
-**Billing:** API usage is billed to your OpenAI account. Add a payment method or prepaid credits under [Billing](https://platform.openai.com/settings/organization/billing) if required. You can set [usage limits](https://platform.openai.com/settings/organization/limits) in the dashboard.
+```bash
+git clone <your-repo-url>
+cd webhistory-memory-aid/domain-journal
+npm install
+npm run build
+```
 
-**Compatible providers:** Any service that exposes `/v1/chat/completions` in OpenAI’s format works if you set **OpenAI-compatible base URL**, **Model**, and **API key** accordingly (e.g. some local gateways or other hosts).
+The production bundle is written to **`dist/`**.
 
-**Security:** Treat the key like a password. It is stored in `chrome.storage.local` only on your machine and is **not** sent except to the base URL you configure when you request a summary.
+### 3. Load the extension in the browser
 
-## Install (development)
+1. Open **`chrome://extensions`** (Chrome) or **`brave://extensions`** (Brave).  
+2. Turn on **Developer mode** (top right).  
+3. Click **Load unpacked**.  
+4. Select the **`domain-journal/dist`** folder (the one that contains `manifest.json`, `popup.html`, `background.js`, etc.).  
+4. Optional: pin the Domain Journal icon to the toolbar.
 
-1. **Build**
+### 4. First-time configuration
+
+1. Click **Domain Journal → Settings** (from the popup or the extensions list).  
+2. Under **Domain allowlist**, add the hostnames you want to journal (exact names or `*.example.com`). Save.  
+3. Choose how **API summaries** should run (next section). You can skip API setup and only use **Manual journal (web chat)** in the popup if you prefer.
+
+---
+
+## Configure API summarisation (pick one)
+
+API summaries use **Settings → Summarisation → API summary provider**. Use **Test API connection** after saving to verify.
+
+### Option A — Ollama (local, no cloud)
+
+Best when you want everything to stay on your machine.
+
+1. **Install Ollama** from [ollama.com](https://ollama.com/) and start it (menu bar app or `ollama serve`). It listens on **`127.0.0.1:11434`** by default.  
+2. **Pull a model** (once), e.g.  
+   `ollama pull llama3.2`  
+3. **Allow the browser extension** — Ollama returns **403** to extension requests unless you whitelist the Chrome origin. Quit Ollama, then start it with:
 
    ```bash
-   cd domain-journal
-   npm install
-   npm run build
+   OLLAMA_ORIGINS='chrome-extension://*' ollama serve
    ```
 
-2. **Load unpacked**
+   On macOS with the GUI app, you can instead run `launchctl setenv OLLAMA_ORIGINS 'chrome-extension://*'` and restart Ollama (may need repeating after reboot). For quick local testing only, `OLLAMA_ORIGINS='*'` is possible but broad.
 
-   - Open `chrome://extensions` (or Brave equivalent)
-   - Enable **Developer mode**
-   - **Load unpacked** → select the `domain-journal/dist` folder
+4. In **Domain Journal → Settings → Summarisation**: select **Ollama (local)**, confirm **Base URL** `http://127.0.0.1:11434/v1` and **Model** matches `ollama list` (e.g. `llama3.2`). Use **Reset Ollama fields to defaults** if needed. **Save settings**.  
+5. Click **Test API connection**. You should see a success message.  
+6. On a tracked page, use **Request Ollama summary** in the popup.
 
-3. **Optional: incognito**
+If **Test API connection** or summarisation returns **403**, see the troubleshooting line in Settings or the section **Ollama 403** below.
 
-   - Extension details → allow in Incognito (if you enable “Allow logging in private windows” in settings)
+### Option B — OpenAI (cloud API)
+
+1. Create an API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).  
+2. In **Settings → Summarisation**, select **OpenAI (cloud API)**. Set **Base URL** to `https://api.openai.com/v1` (or another OpenAI-compatible host), **Model** (e.g. `gpt-4o-mini`), and paste your **API key**. **Save settings**.  
+3. **Test API connection**, then **Request API summary** on a tracked page.
+
+Billing and limits are on your OpenAI account; the ChatGPT website subscription is separate from API usage.
+
+---
+
+## Manual journal (web chat, no API)
+
+Use this when you paste into **chatgpt.com** (or similar) and paste the answer back — **no API key**, no Ollama required.
+
+1. Open a tracked page → Domain Journal popup → **Copy prompt for web chat** (includes visible text from your tab; works on VPN/internal sites).  
+2. Paste into your chat, get a reply with `TITLE:` / `DESCRIPTION:` lines.  
+3. Paste into **Paste web chat reply** or type **Journal title** / **What the page covers** → **Save manual journal entry**.
+
+---
+
+## Ollama 403 (troubleshooting)
+
+Chrome extensions call Ollama with a `chrome-extension://…` origin. Without **OLLAMA_ORIGINS**, Ollama responds **403 Forbidden**.
+
+1. Quit Ollama.  
+2. Start with:
+
+   ```bash
+   OLLAMA_ORIGINS='chrome-extension://*' ollama serve
+   ```
+
+3. Run **Test API connection** in Domain Journal settings again.
+
+See also **Option A** above for macOS GUI and dev-only `*` origin.
+
+---
+
+## Features (summary)
+
+- Domain allowlist (exact + `*.wildcard` hosts)  
+- URL canonicalisation, visit deduplication, IndexedDB storage  
+- Popup: tracking status, summarisation status, API vs manual flows  
+- Report: filters, summary previews in the table, export JSON/CSV  
+- **No telemetry**
 
 ## Development
 
-- `npm run build` — production bundle to `dist/`
-- `npm run test` — Vitest unit tests
-- `npm run typecheck` — TypeScript check
+```bash
+cd domain-journal
+npm install
+npm run build
+```
 
-After code changes, rebuild and use **Reload** on the extension card.
+- `npm run test` — Vitest  
+- `npm run typecheck` — TypeScript  
+
+After code changes: rebuild and **Reload** the extension on `chrome://extensions`.
 
 ## Sample data
 
-`mock/seed-export.json` is a valid export bundle you can import from the report viewer to populate the UI during development.
+`mock/seed-export.json` can be imported from the report viewer for UI testing.
 
 ## Privacy
 
-- Browsing data stays on device except when you **explicitly** request a summary; then visible page text is sent to the API endpoint you configure.
-- API keys are stored locally in extension storage.
+- Visit data stays local unless you use **cloud API** summarisation (page text is sent only when you request it).  
+- **Ollama** keeps requests on your computer.  
+- Keys are stored in `chrome.storage.local`.
 
 ## Project layout
 
-- `src/background/` — service worker (logging, summarisation orchestration, messaging)
-- `src/lib/` — allowlist, canonicalisation, storage, dedupe, hashing, summarisation provider
-- `src/popup`, `src/options`, `src/report` — React UIs
-- `public/manifest.json` — MV3 manifest (copied to `dist`)
+| Path | Role |
+|------|------|
+| `src/background/` | Service worker |
+| `src/lib/` | Allowlist, URL rules, storage, LLM helpers |
+| `src/popup`, `src/options`, `src/report` | React UI |
+| `public/manifest.json` | Copied to `dist` |
 
-See `DESIGN.md` for architecture notes.
+See **DESIGN.md** for architecture notes.
 
-## Repository (GitHub)
+## Repository
 
-To publish this project as a **public** GitHub repository (clone, issues, README on the repo home), follow **[`../docs/GITHUB.md`](../docs/GITHUB.md)** from the repo root.
+The parent repo may include **`docs/GITHUB.md`** with steps to push this project to GitHub.

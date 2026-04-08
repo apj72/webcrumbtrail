@@ -1,16 +1,16 @@
 # Webhistory memory aid — Domain Journal
 
-**Domain Journal** is a local-first Chrome/Brave extension (Manifest V3) that logs visits only on **allowlisted domains** and supports **manual** page summarisation via an OpenAI-compatible API (no automatic summarisation of every visit).
+**Domain Journal** is a local-first Chrome/Brave extension (Manifest V3) that logs visits only on **allowlisted domains** and supports **manual** (web chat) or **API** summarisation (OpenAI cloud or **local Ollama**) when you explicitly request it.
 
 | Resource | Location |
 |----------|----------|
-| Extension source & user docs | [`domain-journal/README.md`](./domain-journal/README.md) |
-| Architecture notes | [`domain-journal/DESIGN.md`](./domain-journal/DESIGN.md) |
-| Original build specification | [`prompt.md`](./prompt.md) |
-| **Publish to GitHub** | [`docs/GITHUB.md`](./docs/GITHUB.md) |
+| **Install & Ollama setup** | [`domain-journal/README.md`](./domain-journal/README.md) |
+| Architecture | [`domain-journal/DESIGN.md`](./domain-journal/DESIGN.md) |
+| Original specification | [`prompt.md`](./prompt.md) |
+| Push to GitHub | [`docs/GITHUB.md`](./docs/GITHUB.md) |
 | License | [MIT](./LICENSE) |
 
-## Quick start
+## Quick install
 
 ```bash
 cd domain-journal
@@ -18,16 +18,12 @@ npm install
 npm run build
 ```
 
-Load **unpacked** from `domain-journal/dist` in `chrome://extensions` (Developer mode). Details, tests, and OpenAI API setup are in [`domain-journal/README.md`](./domain-journal/README.md).
+Load **unpacked** from **`domain-journal/dist`** in `chrome://extensions` (enable **Developer mode**).
 
-## OpenAI API key (short version)
+**Ollama (local summaries):** install [Ollama](https://ollama.com), pull a model (`ollama pull llama3.2`), set `OLLAMA_ORIGINS='chrome-extension://*'` when starting Ollama (avoids **403** from the extension), then in the extension choose **Ollama (local)** under Settings → Summarisation and use **Test API connection**. Full steps: **[`domain-journal/README.md`](./domain-journal/README.md)**.
 
-1. Create or sign in to an OpenAI account.
-2. Open **[API keys](https://platform.openai.com/api-keys)** on the OpenAI Platform.
-3. **Create new secret key**, copy it once, and paste it into Domain Journal **Settings** (stored only in your browser).
+**OpenAI (cloud):** add an API key under **Settings** when **OpenAI (cloud API)** is selected. Keys: [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
 
-You need [billing / usage limits](https://platform.openai.com/settings/organization/billing) configured on your OpenAI account for API calls to succeed. Full steps are in the extension README.
+## GitHub
 
-## Publishing this project on GitHub
-
-See **[`docs/GITHUB.md`](./docs/GITHUB.md)** for creating a **public** repository, initial `git` commands, and optional `gh` CLI usage.
+This repo is intended to be pushed to a public GitHub remote. See [`docs/GITHUB.md`](./docs/GITHUB.md) for `git remote` and `git push`. If you use [GitHub CLI](https://cli.github.com/) (`gh`), ensure your token includes the **`repo`** scope (`gh auth refresh -h github.com -s repo`) so create/push works.

@@ -39,15 +39,22 @@ git remote add origin git@github.com:YOUR_USERNAME/YOUR_REPO_NAME.git
 
 ## 3. Optional: GitHub CLI
 
-If you have [`gh`](https://cli.github.com/) installed and authenticated:
+If you have [`gh`](https://cli.github.com/) installed, sign in with a token that includes the **`repo`** scope (otherwise create/push fails):
 
 ```bash
-cd /path/to/Webhistory_memmory_aid
-git init
+gh auth refresh -h github.com -s repo
+```
+
+Create the repo and push in one step (from the **repository root** — the folder that contains `domain-journal/` and this `docs/` folder):
+
+```bash
+cd /Users/ajoyce/git-repos/Webhistory_memmory_aid
 git add .
-git commit -m "Initial commit: Domain Journal browser extension"
+git commit -m "Describe your changes"
 gh repo create YOUR_REPO_NAME --public --source=. --remote=origin --push
 ```
+
+Use a new `YOUR_REPO_NAME` that does not already exist on your account. If the folder is already a git repo with commits, skip `git init` and only `commit` / `gh repo create`.
 
 ## 4. What gets published
 
