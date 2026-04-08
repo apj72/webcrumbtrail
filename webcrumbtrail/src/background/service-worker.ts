@@ -8,7 +8,7 @@ import { loadSettings, saveSettings } from "../lib/storage/settings";
 import { exportAll } from "../lib/storage/export-import";
 import { effectiveOpenAICompatible } from "../lib/llm-provider";
 import { summarizeWithOpenAICompatible, testOpenAICompatibleConnection } from "../lib/summarize/openai-compatible";
-import type { PageRecord } from "../shared/types";
+import type { DomainRule, PageRecord } from "../shared/types";
 import type { MsgPageStatusReply, MsgSummaryResult } from "../shared/messages";
 
 async function handleVisit(
@@ -156,6 +156,51 @@ async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSum
   }
 }
 
+/** Add exact hostname to allowlist (or enable existing rule), then record this visit when policy allows. */
+async function addDomainAndLogTab(
+  tabId: number,
+): Promise<{ ok: true; logged: boolean; warning?: string } | { ok: false; error: string }> {
+  const tab = await chrome.tabs.get(tabId);
+  const url = tab.url;
+  if (!url?.startsWith("http")) {
+    return { ok: false, error: "Only http(s) pages can be allowlisted." };
+  }
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    return { ok: false, error: "Invalid page URL." };
+  }
+  if (!hostname) {
+    return { ok: false, error: "Could not read hostname." };
+  }
+
+  const settings = await loadSettings();
+  const hostNorm = hostname;
+  const rules: DomainRule[] = settings.domainRules.map((r) => ({ ...r }));
+  const idx = rules.findIndex((r) => r.pattern.trim().toLowerCase() === hostNorm);
+  if (idx >= 0) {
+    rules[idx] = { ...rules[idx], enabled: true };
+  } else {
+    rules.push({ id: crypto.randomUUID(), pattern: hostname, enabled: true });
+  }
+  await saveSettings({ ...settings, domainRules: rules });
+
+  const after = await loadSettings();
+  const incognito = tab.incognito ?? false;
+  if (incognito && !after.allowIncognitoLogging) {
+    return {
+      ok: true,
+      logged: false,
+      warning:
+        "Domain added. Incognito visits are not logged — enable “Allow incognito logging” in Settings or use a normal window.",
+    };
+  }
+
+  await handleVisit(tabId, url, tab.title ?? "", incognito);
+  return { ok: true, logged: true };
+}
+
 async function pageStatusForUrl(url: string): Promise<MsgPageStatusReply> {
   const settings = await loadSettings();
   let hostname = "";
@@ -275,6 +320,11 @@ chrome.runtime.onMessage.addListener((message: { type: string; [k: string]: unkn
     if (message.type === "GET_PAGE_STATUS") {
       const m = message as unknown as { url: string };
       void pageStatusForUrl(m.url).then(sendResponse);
+      return true;
+    }
+    if (message.type === "ADD_DOMAIN_AND_LOG") {
+      const m = message as unknown as { tabId: number };
+      void addDomainAndLogTab(m.tabId).then(sendResponse);
       return true;
     }
     if (message.type === "REQUEST_SUMMARY") {

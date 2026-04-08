@@ -29,6 +29,8 @@ function formatTime(ts: number): string {
 function App() {
   const [status, setStatus] = useState<Status | null>(null);
   const [tabId, setTabId] = useState<number | null>(null);
+  /** Current tab URL (for allowlist helper: only http(s) can be added). */
+  const [activeTabUrl, setActiveTabUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [summaryTitle, setSummaryTitle] = useState("");
@@ -46,6 +48,7 @@ function App() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id || !tab.url) return;
     setTabId(tab.id);
+    setActiveTabUrl(tab.url);
     const s = await chrome.runtime.sendMessage({
       type: "GET_PAGE_STATUS",
       url: tab.url,
@@ -163,6 +166,41 @@ function App() {
     p && p.summary_status === "completed" && !!(p.latest_summary?.trim() || p.summary_title?.trim());
   const summarisedAt = p?.latest_summary_updated_at;
 
+  const canAddDomain = tabId != null && !!activeTabUrl?.startsWith("http") && !status.allowed;
+
+  let allowlistHostname = "";
+  if (activeTabUrl) {
+    try {
+      allowlistHostname = new URL(activeTabUrl).hostname;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const addDomainAndLog = async () => {
+    if (tabId == null) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r: {
+        ok?: boolean;
+        logged?: boolean;
+        warning?: string;
+        error?: string;
+      } = await chrome.runtime.sendMessage({ type: "ADD_DOMAIN_AND_LOG", tabId });
+      if (r?.ok) {
+        if (r.warning) setMsg(r.warning);
+        else if (r.logged) setMsg("Domain added to allowlist and this page logged.");
+        else setMsg("Domain added to allowlist.");
+        await load();
+      } else {
+        setMsg(r?.error ?? "Could not add domain.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div style={bodyStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -194,6 +232,21 @@ function App() {
         )}
         {status.allowed && !p && (
           <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>Not logged yet — navigate or reload once.</p>
+        )}
+        {!status.allowed && canAddDomain && (
+          <div style={{ marginTop: 10 }}>
+            <button type="button" disabled={busy} onClick={() => void addDomainAndLog()}>
+              Add this domain to allowlist &amp; log page
+            </button>
+            <p style={{ color: "var(--muted)", fontSize: 11, margin: "8px 0 0" }}>
+              Adds <span className="mono">{allowlistHostname}</span> to your allowlist and records this visit now.
+            </p>
+          </div>
+        )}
+        {!status.allowed && activeTabUrl && !activeTabUrl.startsWith("http") && (
+          <p style={{ color: "var(--muted)", fontSize: 12, margin: "8px 0 0" }}>
+            Open a normal web page (http/https) to add it to the allowlist.
+          </p>
         )}
       </div>
 

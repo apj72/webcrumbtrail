@@ -5,6 +5,12 @@ export type MsgGetPageStatus = {
   url: string;
 };
 
+/** Add current tab’s hostname to the allowlist and record this visit immediately. */
+export type MsgAddDomainAndLog = {
+  type: "ADD_DOMAIN_AND_LOG";
+  tabId: number;
+};
+
 export type MsgPageStatusReply = {
   allowed: boolean;
   canonical_url: string;
@@ -37,6 +43,7 @@ export type MsgContentExtracted = {
 
 export type BackgroundMessage =
   | MsgGetPageStatus
+  | MsgAddDomainAndLog
   | MsgRequestSummary
   | MsgGetSettings
   | MsgSaveSettings

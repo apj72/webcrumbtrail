@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { PageRecord, SettingsRecord, SummaryStatus, VisitEvent } from "../shared/types";
-import { getDB, listVisitsForPage } from "../lib/storage/idb";
+import { deletePageById, getDB, listVisitsForPage } from "../lib/storage/idb";
 import { parseChatGptJournalReply } from "../lib/chatgpt-journal";
 import { pagesToCsv, importBundle } from "../lib/storage/export-import";
 import "../ui/styles.css";
@@ -65,6 +65,8 @@ function App() {
   const [manualDesc, setManualDesc] = useState("");
   const [pastedReply, setPastedReply] = useState("");
   const [apiProvider, setApiProvider] = useState<"openai" | "ollama">("openai");
+  /** Must be turned on before Delete buttons work (default off). */
+  const [deleteControlsEnabled, setDeleteControlsEnabled] = useState(false);
 
   const loadPages = useCallback(async () => {
     const db = await getDB();
@@ -178,6 +180,31 @@ function App() {
     void chrome.tabs.create({ url });
   };
 
+  const removePage = async (pageId: string, title: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!deleteControlsEnabled) return;
+    if (
+      !confirm(
+        `Delete “${title.slice(0, 80)}${title.length > 80 ? "…" : ""}” and its visit history? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const db = await getDB();
+      await deletePageById(db, pageId);
+      if (selectedId === pageId) setSelectedId(null);
+      await loadPages();
+      setMsg("Page deleted.");
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Delete failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const requestSummary = async (refresh: boolean) => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) {
@@ -213,7 +240,47 @@ function App() {
   return (
     <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr minmax(380px, 460px)" : "1fr", minHeight: "100vh" }}>
       <div style={{ padding: 16, borderRight: selected ? "1px solid var(--border)" : undefined }}>
-        <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: 16 }}>
+        <header style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
+              alignItems: "center",
+              marginBottom: 10,
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: deleteControlsEnabled ? "rgba(239, 68, 68, 0.06)" : "var(--surface)",
+            }}
+          >
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+                margin: 0,
+                userSelect: "none",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={deleteControlsEnabled}
+                onChange={(e) => setDeleteControlsEnabled(e.target.checked)}
+                style={{ width: 18, height: 18, cursor: "pointer" }}
+              />
+              Enable delete
+            </label>
+            <span style={{ fontSize: 12, color: "var(--muted)", maxWidth: 420 }}>
+              {deleteControlsEnabled
+                ? "Delete buttons are active. Turn off when finished to avoid accidental removals."
+                : "Row and detail delete controls stay disabled until you turn this on."}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
           <h1 style={{ margin: 0, fontSize: 20 }}>WebCrumbTrail</h1>
           <button type="button" className="secondary" onClick={() => void chrome.runtime.openOptionsPage()}>
             Settings
@@ -237,6 +304,7 @@ function App() {
           <button type="button" className="secondary" onClick={exportCsv}>
             Export CSV (filtered)
           </button>
+          </div>
         </header>
 
         <div
@@ -316,6 +384,7 @@ function App() {
                 <th style={{ padding: "6px 8px" }}>Domain</th>
                 <th style={{ padding: "6px 8px" }}>Visits</th>
                 <th style={{ padding: "6px 8px" }}>Last seen</th>
+                <th style={{ padding: "6px 8px", width: 88 }}>Delete</th>
               </tr>
             </thead>
             <tbody>
@@ -336,6 +405,17 @@ function App() {
                   <td style={{ padding: "8px", verticalAlign: "top" }}>{p.domain}</td>
                   <td style={{ padding: "8px", verticalAlign: "top" }}>{Math.max(1, p.visit_count)}</td>
                   <td style={{ padding: "8px", whiteSpace: "nowrap", verticalAlign: "top" }}>{formatTime(p.last_seen_at)}</td>
+                  <td style={{ padding: "8px", verticalAlign: "top" }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy || !deleteControlsEnabled}
+                      style={{ padding: "0.25rem 0.5rem", fontSize: 12 }}
+                      onClick={(e) => void removePage(p.id, p.title || "(no title)", e)}
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -346,9 +426,20 @@ function App() {
 
       {selected && (
         <aside style={{ padding: 16, overflow: "auto", maxHeight: "100vh" }}>
-          <button type="button" className="secondary" style={{ marginBottom: 12 }} onClick={() => setSelectedId(null)}>
-            Close detail
-          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12, alignItems: "center" }}>
+            <button type="button" className="secondary" onClick={() => setSelectedId(null)}>
+              Close detail
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy || !deleteControlsEnabled}
+              style={{ color: "var(--danger)", borderColor: "var(--danger)" }}
+              onClick={(e) => void removePage(selected.id, selected.title || "(no title)", e)}
+            >
+              Delete this page
+            </button>
+          </div>
           <h2 style={{ marginTop: 0, fontSize: 16 }}>{selected.title}</h2>
           <p className="mono" style={{ fontSize: 11 }}>
             {selected.canonical_url}

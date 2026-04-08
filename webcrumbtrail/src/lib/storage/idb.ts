@@ -162,3 +162,15 @@ export async function deleteAllData(db: IDBPDatabase<JournalDB>): Promise<void> 
   await Promise.all([tx.objectStore("pages").clear(), tx.objectStore("visits").clear()]);
   await tx.done;
 }
+
+/** Remove one page and all visit events that reference it. */
+export async function deletePageById(db: IDBPDatabase<JournalDB>, pageId: string): Promise<void> {
+  const visits = await listVisitsForPage(db, pageId);
+  const tx = db.transaction(["pages", "visits"], "readwrite");
+  const visitStore = tx.objectStore("visits");
+  for (const v of visits) {
+    await visitStore.delete(v.id);
+  }
+  await tx.objectStore("pages").delete(pageId);
+  await tx.done;
+}
