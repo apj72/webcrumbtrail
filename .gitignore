@@ -1,0 +1,9 @@
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+
+# Extension build output & deps
+domain-journal/node_modules/
+domain-journal/dist/

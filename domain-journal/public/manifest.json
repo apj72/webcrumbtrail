@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Domain Journal",
+  "version": "0.1.0",
+  "description": "Local-first journal of visits to allowlisted domains with optional manual summaries.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Domain Journal"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "tabs", "scripting", "contextMenus"],
+  "host_permissions": ["<all_urls>"],
+  "incognito": "split"
+}
