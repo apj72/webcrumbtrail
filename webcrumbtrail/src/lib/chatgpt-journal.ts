@@ -1,10 +1,13 @@
+/** Max characters of page text embedded in the manual web-chat prompt after smart extraction. */
+export const MANUAL_JOURNAL_PAGE_CHAR_BUDGET = 14_000;
+
 /** Document to paste into ChatGPT (web) for a manual journal entry. */
 export function buildChatGptJournalDocument(args: {
   pageUrl: string;
   tabTitle: string;
   visibleText: string;
 }): string {
-  const body = args.visibleText.slice(0, 100_000);
+  const body = args.visibleText.trim().slice(0, MANUAL_JOURNAL_PAGE_CHAR_BUDGET + 500);
   return `You are helping me with a personal reading journal (WebCrumbTrail). Using ONLY the page information below, reply with EXACTLY this format (two labelled lines, then a blank line):
 
 TITLE: <short descriptive title, max ~100 characters>
@@ -17,7 +20,7 @@ URL (for my reference only): ${args.pageUrl}
 Browser tab title: ${args.tabTitle}
 ---
 
-Page content (copied from my browser; may be truncated):
+Page content (excerpt for journaling; menus and chrome may be omitted; long pages are truncated):
 ${body}`;
 }
 

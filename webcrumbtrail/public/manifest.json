@@ -15,7 +15,7 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "tabs", "scripting", "contextMenus"],
+  "permissions": ["storage", "tabs", "windows", "scripting", "contextMenus"],
   "host_permissions": ["<all_urls>"],
   "incognito": "split"
 }

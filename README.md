@@ -1,5 +1,9 @@
 # WebCrumbTrail
 
+<p align="center">
+  <img src="./webcrumbtrail/images/named_banner.png" alt="WebCrumbTrail" width="520" />
+</p>
+
 WebCrumbTrail is a local-first Chrome and Brave extension (Manifest V3). It records page visits only for hostnames you allow, and it can attach summaries when you ask for them. Summaries never run automatically.
 
 ## What it does
@@ -18,7 +22,7 @@ Allowlist without opening Settings
 Popup
 
 - Shows whether the current site is allowlisted and whether the page is already stored.
-- OpenAI-compatible cloud API or local Ollama summarisation on demand, plus a manual path that copies a prompt for a browser chat and lets you paste the reply back.
+- OpenAI-compatible cloud API, Google Gemini, or local Ollama summarisation on demand, plus a manual path that copies a prompt for a browser chat and lets you paste the reply back.
 
 Report viewer
 
@@ -27,7 +31,7 @@ Report viewer
 
 Options
 
-- Edit the allowlist, dedupe interval, summarisation provider, API or Ollama endpoints, and Incognito behaviour.
+- Edit the allowlist, dedupe interval, summarisation provider (OpenAI, Gemini, or Ollama), endpoints, and Incognito behaviour.
 
 Other
 
@@ -44,7 +48,7 @@ npm run build
 
 In the browser, open the extensions page (`chrome://extensions` or `brave://extensions`), enable developer mode, choose Load unpacked, and select the `webcrumbtrail/dist` folder inside this repository.
 
-Local Ollama needs the Chrome extension origin allowed (otherwise you may see HTTP 403). OpenAI or other cloud APIs need a key in Settings when you use the cloud provider. Step-by-step setup, including Ollama and troubleshooting, is in [`webcrumbtrail/README.md`](./webcrumbtrail/README.md).
+Local Ollama needs the Chrome extension origin allowed (otherwise you may see HTTP 403). OpenAI, Gemini, or other cloud APIs need a key in Settings when you use that provider. Step-by-step setup, including Ollama and troubleshooting, is in [`webcrumbtrail/README.md`](./webcrumbtrail/README.md).
 
 ## Repository layout
 

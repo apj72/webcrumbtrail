@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { getActiveTabInLastFocusedNormalWindow } from "../lib/active-tab";
 import { parseChatGptJournalReply } from "../lib/chatgpt-journal";
-import type { SettingsRecord, SummarizationProvider } from "../shared/types";
+import { summarizationProviderLabel, type SettingsRecord, type SummarizationProvider } from "../shared/types";
 import "../ui/styles.css";
 
 type PageLite = {
@@ -45,13 +46,29 @@ function App() {
   };
 
   const load = async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id || !tab.url) return;
+    const tab = await getActiveTabInLastFocusedNormalWindow();
+    const tabUrl = tab?.url ?? tab?.pendingUrl ?? "";
+    if (!tab?.id) {
+      setTabId(null);
+      setActiveTabUrl(null);
+      setStatus(null);
+      return;
+    }
+    if (!tabUrl.startsWith("http")) {
+      setTabId(null);
+      setActiveTabUrl(tabUrl || null);
+      setStatus({
+        allowed: false,
+        canonical_url: tabUrl || "(not a web page)",
+        page: null,
+      });
+      return;
+    }
     setTabId(tab.id);
-    setActiveTabUrl(tab.url);
+    setActiveTabUrl(tabUrl);
     const s = await chrome.runtime.sendMessage({
       type: "GET_PAGE_STATUS",
-      url: tab.url,
+      url: tabUrl,
     });
     setStatus(s);
     const p = s.page as PageLite | null;
@@ -76,18 +93,26 @@ function App() {
   };
 
   const requestSummary = async (refresh: boolean) => {
-    if (tabId == null) return;
     setBusy(true);
     setMsg(null);
     try {
+      const tab = await getActiveTabInLastFocusedNormalWindow();
+      if (!tab?.id) {
+        setMsg("Could not detect the active tab.");
+        return;
+      }
       const st: SettingsRecord = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" });
       const prov = st.summarizationProvider ?? "openai";
       const r = await chrome.runtime.sendMessage({
         type: "REQUEST_SUMMARY",
-        tabId,
+        tabId: tab.id,
         refresh,
       });
-      if (r?.ok) setMsg(prov === "ollama" ? "Ollama summary saved." : "OpenAI / API summary saved.");
+      if (r?.ok) {
+        const saved =
+          prov === "ollama" ? "Ollama summary saved." : prov === "gemini" ? "Gemini summary saved." : "API summary saved.";
+        setMsg(saved);
+      }
       else setMsg(r?.error ?? "Failed.");
       await load();
       setApiProvider(prov);
@@ -97,11 +122,15 @@ function App() {
   };
 
   const copyChatGptPrompt = async () => {
-    if (tabId == null) return;
     setBusy(true);
     setMsg(null);
     try {
-      const r = await chrome.runtime.sendMessage({ type: "BUILD_CHATGPT_PROMPT", tabId });
+      const tab = await getActiveTabInLastFocusedNormalWindow();
+      if (!tab?.id) {
+        setMsg("Could not detect the active tab.");
+        return;
+      }
+      const r = await chrome.runtime.sendMessage({ type: "BUILD_CHATGPT_PROMPT", tabId: tab.id });
       if (!r?.ok || !r.document) {
         setMsg(r?.error ?? "Could not build prompt.");
         return;
@@ -126,13 +155,17 @@ function App() {
   };
 
   const saveManualJournal = async () => {
-    if (tabId == null) return;
     setBusy(true);
     setMsg(null);
     try {
+      const tab = await getActiveTabInLastFocusedNormalWindow();
+      if (!tab?.id) {
+        setMsg("Could not detect the active tab.");
+        return;
+      }
       const r = await chrome.runtime.sendMessage({
         type: "SAVE_MANUAL_JOURNAL",
-        tabId,
+        tabId: tab.id,
         summaryTitle,
         description,
       });
@@ -181,8 +214,9 @@ function App() {
     setBusy(true);
     setMsg(null);
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id || !tab.url?.startsWith("http")) {
+      const tab = await getActiveTabInLastFocusedNormalWindow();
+      const u = tab?.url ?? tab?.pendingUrl ?? "";
+      if (!tab?.id || !u.startsWith("http")) {
         setMsg("Focus an http(s) tab (the page you want to allowlist), then try again.");
         return;
       }
@@ -214,6 +248,23 @@ function App() {
         <button type="button" className="secondary" style={{ padding: "0.25rem 0.5rem", fontSize: 12 }} onClick={openSettings}>
           Settings
         </button>
+      </div>
+
+      <div
+        className="card"
+        style={{
+          marginBottom: 12,
+          borderLeft: "4px solid var(--accent)",
+          background: "rgba(59, 130, 246, 0.06)",
+        }}
+      >
+        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>Report &amp; exports</div>
+        <button type="button" onClick={openReport} style={{ width: "100%" }}>
+          Open report viewer
+        </button>
+        <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
+          Browse logged pages, filters, CSV/JSON, and manual journal paste — separate from visit logging on this tab.
+        </p>
       </div>
 
       <div className="card" style={{ marginBottom: 10 }}>
@@ -286,24 +337,17 @@ function App() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
-          {apiProvider === "ollama"
-            ? "Ollama (local) — configured in Settings"
-            : "OpenAI / cloud API — configured in Settings"}
-        </p>
+        <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>{summarizationProviderLabel(apiProvider)} — configured in Settings</p>
         <button type="button" disabled={busy || !status.allowed || tabId == null} onClick={() => void requestSummary(false)}>
-          {apiProvider === "ollama" ? "Request Ollama summary" : "Request API summary"}
+          {apiProvider === "ollama" ? "Request Ollama summary" : apiProvider === "gemini" ? "Request Gemini summary" : "Request API summary"}
         </button>
         <button type="button" className="secondary" disabled={busy || !status.allowed || tabId == null} onClick={() => void requestSummary(true)}>
-          {apiProvider === "ollama" ? "Refresh Ollama summary" : "Refresh API summary"}
-        </button>
-        <button type="button" className="secondary" onClick={openReport}>
-          Open report viewer
+          {apiProvider === "ollama" ? "Refresh Ollama summary" : apiProvider === "gemini" ? "Refresh Gemini summary" : "Refresh API summary"}
         </button>
 
         <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "12px 0 8px" }} />
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px" }}>
-          <strong>Manual journal (web chat)</strong> — no API. Copies visible page text for a browser chat (e.g. chatgpt.com).
+          <strong>Manual journal (web chat)</strong> — no API. Copies a focused excerpt (main content / Google Docs body, ~14k chars max) for a browser chat (e.g. chatgpt.com).
         </p>
         <button type="button" className="secondary" disabled={busy || !status.allowed || tabId == null} onClick={() => void copyChatGptPrompt()}>
           Copy prompt for web chat
@@ -334,7 +378,12 @@ function App() {
         </button>
       </div>
       <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 10, marginBottom: 0 }}>
-        Manual flow stays in your browser chat only. API summary sends page text to {apiProvider === "ollama" ? "your local Ollama" : "your configured API"}.
+        Manual flow stays in your browser chat only. API summary sends page text to{" "}
+        {apiProvider === "ollama"
+          ? "your local Ollama"
+          : apiProvider === "gemini"
+            ? "Google Gemini"
+            : "your configured API"}.
       </p>
     </div>
   );

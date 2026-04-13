@@ -39,8 +39,15 @@ export interface OpenAICompatibleSettings {
   apiKey: string;
 }
 
-/** Which backend handles “Request API summary” (both use the same OpenAI-compatible HTTP shape). */
-export type SummarizationProvider = "openai" | "ollama";
+/** Which backend handles “Request API summary”. */
+export type SummarizationProvider = "openai" | "ollama" | "gemini";
+
+/** Google AI Studio / Gemini API (generateContent). Key from https://aistudio.google.com/apikey */
+export interface GeminiSettings {
+  model: string;
+  /** Stored in chrome.storage.local; never synced */
+  apiKey: string;
+}
 
 export interface OllamaLocalSettings {
   baseUrl: string;
@@ -60,6 +67,7 @@ export interface SettingsRecord {
   summarizationProvider: SummarizationProvider;
   openaiCompatible: OpenAICompatibleSettings;
   ollamaLocal: OllamaLocalSettings;
+  gemini: GeminiSettings;
 }
 
 export const DEFAULT_SETTINGS: SettingsRecord = {
@@ -82,4 +90,19 @@ export const DEFAULT_SETTINGS: SettingsRecord = {
     baseUrl: "http://127.0.0.1:11434/v1",
     model: "llama3.2",
   },
+  gemini: {
+    model: "gemini-2.0-flash",
+    apiKey: "",
+  },
 };
+
+export function summarizationProviderLabel(p: SummarizationProvider): string {
+  switch (p) {
+    case "ollama":
+      return "Ollama (local)";
+    case "gemini":
+      return "Google Gemini";
+    default:
+      return "OpenAI / compatible API";
+  }
+}

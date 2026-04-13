@@ -19,6 +19,10 @@
       "baseUrl": "https://api.openai.com/v1",
       "model": "gpt-4o-mini",
       "apiKey": ""
+    },
+    "gemini": {
+      "model": "gemini-2.0-flash",
+      "apiKey": ""
     }
   },
   "pages": [

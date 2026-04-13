@@ -34,6 +34,10 @@ In Settings → Summarisation, choose Ollama (local), set base URL (default `htt
 
 Create a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys). In Settings → Summarisation, select OpenAI (cloud API), set base URL (often `https://api.openai.com/v1`), model, and API key, then save and test.
 
+## Google Gemini (cloud)
+
+Create an API key in [Google AI Studio](https://aistudio.google.com/apikey). In Settings → Summarisation, select Google Gemini, enter the model id (for example `gemini-2.0-flash`), paste the key, save, then use Test API connection. Summaries use the Gemini `generateContent` REST API; page text is sent to Google when you request a summary.
+
 ## Development
 
 ```bash

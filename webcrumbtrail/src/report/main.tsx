@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { PageRecord, SettingsRecord, SummaryStatus, VisitEvent } from "../shared/types";
+import type { PageRecord, SettingsRecord, SummaryStatus, SummarizationProvider, VisitEvent } from "../shared/types";
+import { getActiveTabInLastFocusedNormalWindow } from "../lib/active-tab";
 import { deletePageById, getDB, listVisitsForPage } from "../lib/storage/idb";
 import { parseChatGptJournalReply } from "../lib/chatgpt-journal";
 import { pagesToCsv, importBundle } from "../lib/storage/export-import";
@@ -64,7 +65,7 @@ function App() {
   const [manualTitle, setManualTitle] = useState("");
   const [manualDesc, setManualDesc] = useState("");
   const [pastedReply, setPastedReply] = useState("");
-  const [apiProvider, setApiProvider] = useState<"openai" | "ollama">("openai");
+  const [apiProvider, setApiProvider] = useState<SummarizationProvider>("openai");
   /** Must be turned on before Delete buttons work (default off). */
   const [deleteControlsEnabled, setDeleteControlsEnabled] = useState(false);
 
@@ -206,7 +207,7 @@ function App() {
   };
 
   const requestSummary = async (refresh: boolean) => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = await getActiveTabInLastFocusedNormalWindow();
     if (!tab?.id) {
       setMsg("No active tab.");
       return;
@@ -223,7 +224,13 @@ function App() {
         refresh,
       });
       setMsg(
-        r?.ok ? (prov === "ollama" ? "Ollama summary saved." : "API summary saved.") : r?.error ?? "Failed",
+        r?.ok
+          ? prov === "ollama"
+            ? "Ollama summary saved."
+            : prov === "gemini"
+              ? "Gemini summary saved."
+              : "API summary saved."
+          : r?.error ?? "Failed",
       );
       await loadPages();
       if (selectedId) {
@@ -483,10 +490,18 @@ function App() {
               <strong>API summary</strong> (optional): switch to a tab showing this URL, then:
             </p>
             <button type="button" disabled={busy} onClick={() => void requestSummary(false)}>
-              {apiProvider === "ollama" ? "Request Ollama summary (active tab)" : "Request API summary (active tab)"}
+              {apiProvider === "ollama"
+                ? "Request Ollama summary (active tab)"
+                : apiProvider === "gemini"
+                  ? "Request Gemini summary (active tab)"
+                  : "Request API summary (active tab)"}
             </button>
             <button type="button" className="secondary" disabled={busy} onClick={() => void requestSummary(true)}>
-              {apiProvider === "ollama" ? "Refresh Ollama summary (active tab)" : "Refresh API summary (active tab)"}
+              {apiProvider === "ollama"
+                ? "Refresh Ollama summary (active tab)"
+                : apiProvider === "gemini"
+                  ? "Refresh Gemini summary (active tab)"
+                  : "Refresh API summary (active tab)"}
             </button>
           </div>
           {msg && <p style={{ fontSize: 12, color: msg.includes("Failed") || msg.includes("Could not") ? "var(--danger)" : "var(--ok)" }}>{msg}</p>}

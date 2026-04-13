@@ -2,15 +2,15 @@
 
 ## Overview
 
-WebCrumbTrail is a Manifest V3 extension built with **Vite**, **React**, and **TypeScript**. The UI uses relative asset paths (`base: './'`) so scripts load correctly under `chrome-extension://` URLs.
+WebCrumbTrail is a Manifest V3 extension built with **Vite**, **React**, and **TypeScript**. The UI uses relative asset paths (`base: './'`) so scripts load correctly under `chrome-extension://` URLs. The **`windows`** permission is used so the popup can resolve the active tab in the last-focused *normal* browser window (not the popup itself), which avoids treating `chrome-extension://…` as the “current page” when using Google Docs and similar sites.
 
 ## Components
 
 | Piece | Role |
 | --- | --- |
-| Service worker | Subscribes to `chrome.tabs.onCompleted` (via `tabs.onUpdated` with `status === 'complete'`); filters by allowlist and incognito policy; writes pages/visits to IndexedDB; handles summarisation via `chrome.scripting.executeScript` to read `document.body.innerText`; exposes messaging for popup/report/options |
+| Service worker | Subscribes to `chrome.tabs.onCompleted` (via `tabs.onUpdated` with `status === 'complete'`); filters by allowlist and incognito policy; writes pages/visits to IndexedDB; extracts page text via `executeScript` using a content-aware helper (`main` / `article` / Google Docs editor surface, capped length); exposes messaging for popup/report/options |
 | IndexedDB (`idb`) | Stores `PageRecord` and `VisitEvent`; indexes on domain, last seen, page id, visited_at |
-| `chrome.storage.local` | Stores `SettingsRecord` including domain rules, `summarizationProvider` (`openai` \| `ollama`), and separate OpenAI vs Ollama endpoint fields |
+| `chrome.storage.local` | Stores `SettingsRecord` including domain rules, `summarizationProvider` (`openai` \| `ollama` \| `gemini`), and separate OpenAI, Ollama, and Gemini fields |
 | Popup / Options / Report | React apps; report reads IndexedDB directly (same extension origin) |
 
 ## URL canonicalisation

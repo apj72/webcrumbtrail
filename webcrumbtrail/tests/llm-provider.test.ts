@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { effectiveOpenAICompatible } from "../src/lib/llm-provider";
-import { DEFAULT_SETTINGS } from "../src/shared/types";
+import { DEFAULT_SETTINGS, summarizationProviderLabel } from "../src/shared/types";
 
 describe("effectiveOpenAICompatible", () => {
   it("uses OpenAI settings when provider is openai", () => {
@@ -26,5 +26,11 @@ describe("effectiveOpenAICompatible", () => {
     expect(e.baseUrl).toContain("11434");
     expect(e.model).toBe("mistral");
     expect(e.apiKey).toBe("ollama");
+  });
+});
+
+describe("summarizationProviderLabel", () => {
+  it("includes Gemini for gemini provider", () => {
+    expect(summarizationProviderLabel("gemini")).toContain("Gemini");
   });
 });

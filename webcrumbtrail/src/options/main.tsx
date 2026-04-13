@@ -163,7 +163,7 @@ function App() {
         <fieldset style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, marginTop: 12 }}>
           <legend style={{ padding: "0 6px", fontSize: 14 }}>API summary provider</legend>
           <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 0 }}>
-            Choose which backend receives <strong>Request API summary</strong>. OpenAI and Ollama settings are both saved so you can switch anytime.
+            Choose which backend receives <strong>Request API summary</strong>. All provider blocks are saved so you can switch anytime.
           </p>
           <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <input
@@ -173,6 +173,15 @@ function App() {
               onChange={() => setS({ ...s, summarizationProvider: "openai", summarizationEnabled: true })}
             />
             OpenAI (cloud API)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <input
+              type="radio"
+              name="prov"
+              checked={s.summarizationProvider === "gemini"}
+              onChange={() => setS({ ...s, summarizationProvider: "gemini", summarizationEnabled: true })}
+            />
+            Google Gemini (Google AI / AI Studio)
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input
@@ -226,6 +235,48 @@ function App() {
             <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 8 }}>
               Page text is sent to this endpoint when you request an API summary. Use your OpenAI key for api.openai.com or another compatible host.
             </p>
+          </div>
+        )}
+
+        {s.summarizationProvider === "gemini" && (
+          <div style={{ marginTop: 16 }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 14 }}>Google Gemini</h3>
+            <p style={{ color: "var(--muted)", fontSize: 12 }}>
+              Create an API key in{" "}
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
+                Google AI Studio
+              </a>
+              . Page text is sent to Google's generateContent API when you request a summary.
+            </p>
+            <label style={{ marginTop: 12 }}>Model id</label>
+            <input
+              style={{ width: "100%" }}
+              placeholder="gemini-2.0-flash"
+              value={s.gemini.model}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  gemini: { ...s.gemini, model: e.target.value },
+                })
+              }
+            />
+            <p style={{ color: "var(--muted)", fontSize: 12 }}>
+              Use the model name from the docs (e.g. <code>gemini-2.0-flash</code>, <code>gemini-1.5-pro</code>). Do not include the{" "}
+              <code>models/</code> prefix.
+            </p>
+            <label style={{ marginTop: 12 }}>API key (stored locally)</label>
+            <input
+              style={{ width: "100%" }}
+              type="password"
+              autoComplete="off"
+              value={s.gemini.apiKey}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  gemini: { ...s.gemini, apiKey: e.target.value },
+                })
+              }
+            />
           </div>
         )}
 
@@ -301,7 +352,7 @@ function App() {
             {testBusy ? "Testing…" : "Test API connection"}
           </button>
           <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 8, marginBottom: 4 }}>
-            Saves settings first, then sends a tiny test message to the <strong>selected</strong> provider (OpenAI or Ollama).
+            Saves settings first, then sends a tiny test message to the <strong>selected</strong> provider (OpenAI, Gemini, or Ollama).
           </p>
           {testMsg && (
             <p

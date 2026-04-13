@@ -2,12 +2,13 @@ import { hostMatchesRules } from "../lib/allowlist";
 import { canonicalizeUrl } from "../lib/canonicalize";
 import { shouldCountNewVisit } from "../lib/dedupe";
 import { sha256Hex } from "../lib/hash";
-import { buildChatGptJournalDocument } from "../lib/chatgpt-journal";
+import { buildChatGptJournalDocument, MANUAL_JOURNAL_PAGE_CHAR_BUDGET } from "../lib/chatgpt-journal";
 import { getDB, getLastVisitForPage, getPageByCanonical, getPageById, putPage, addVisit } from "../lib/storage/idb";
 import { loadSettings, saveSettings } from "../lib/storage/settings";
 import { exportAll } from "../lib/storage/export-import";
 import { effectiveOpenAICompatible } from "../lib/llm-provider";
 import { summarizeWithOpenAICompatible, testOpenAICompatibleConnection } from "../lib/summarize/openai-compatible";
+import { summarizeWithGemini, testGeminiConnection } from "../lib/summarize/gemini";
 import type { DomainRule, PageRecord } from "../shared/types";
 import type { MsgPageStatusReply, MsgSummaryResult } from "../shared/messages";
 
@@ -79,12 +80,75 @@ async function handleVisit(
   await putPage(db, page);
 }
 
-function extractVisibleText(): string {
+/** API / LLM summaries: generous cap; extraction prefers main content to reduce nav noise. */
+const API_SUMMARY_TEXT_MAX = 120_000;
+
+/**
+ * Injected into the page. Must stay self-contained (Chrome serialises the function).
+ * Prefers main/article, Google Docs editor surface, then falls back to body.
+ */
+function extractPageTextForJournal(maxChars: number): string {
+  const truncate = (text: string, max: number): string => {
+    const t = text.replace(/\n{3,}/g, "\n\n").trim();
+    if (t.length <= max) return t;
+    const slice = t.slice(0, max);
+    const br = slice.lastIndexOf("\n\n");
+    const cut = br > max * 0.55 ? slice.slice(0, br) : slice;
+    return cut.replace(/\s+$/, "") + "\n\n[… WebCrumbTrail: truncated for prompt size …]";
+  };
+
   try {
-    return document.body?.innerText?.slice(0, 120_000) ?? "";
+    const hostname = window.location.hostname;
+    const path = window.location.pathname;
+
+    let source: Element | null = null;
+    if (hostname === "docs.google.com" && path.includes("/document")) {
+      source =
+        document.querySelector(".kix-appview-editor") ||
+        document.querySelector(".kix-page-content-wrapper") ||
+        document.querySelector('[aria-label*="Document content" i]') ||
+        document.querySelector('[role="document"]');
+    }
+
+    if (!source) {
+      source =
+        document.querySelector("main") ||
+        document.querySelector("article") ||
+        document.querySelector('[role="main"]') ||
+        document.body;
+    }
+
+    const htmlSource = source as HTMLElement | null;
+    let raw = htmlSource?.innerText ?? "";
+    if (!raw.trim() && source !== document.body) {
+      raw = document.body?.innerText ?? "";
+    }
+    return truncate(raw, maxChars);
   } catch {
     return "";
   }
+}
+
+function notWebPageMessage(resolvedUrl: string): string {
+  const hint = resolvedUrl
+    ? `Active tab address is not http(s): ${resolvedUrl.slice(0, 120)}${resolvedUrl.length > 120 ? "…" : ""}`
+    : "Could not read a page URL (empty). Focus the Google Docs tab in your browser, then open the WebCrumbTrail popup again.";
+  return `Not a web page. ${hint} (Not an auth issue: a loaded Doc still has an https address.)`;
+}
+
+async function resolveHttpTabUrl(tab: chrome.tabs.Tab, tabId: number): Promise<string> {
+  let url = tab.url ?? tab.pendingUrl ?? "";
+  if (url.startsWith("http")) return url;
+  try {
+    const [{ result } = { result: "" }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => location.href,
+    });
+    if (typeof result === "string" && result.startsWith("http")) return result;
+  } catch {
+    /* restricted or no script access */
+  }
+  return url;
 }
 
 async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSummaryResult> {
@@ -93,14 +157,18 @@ async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSum
     return { ok: false, error: "Summarisation is disabled in settings." };
   }
   const tab = await chrome.tabs.get(tabId);
-  const url = tab.url;
-  if (!url?.startsWith("http")) {
-    return { ok: false, error: "Not a web page." };
+  const url = await resolveHttpTabUrl(tab, tabId);
+  if (!url.startsWith("http")) {
+    return {
+      ok: false,
+      error: notWebPageMessage(url),
+    };
   }
 
   const [{ result: text } = { result: "" }] = await chrome.scripting.executeScript({
     target: { tabId },
-    func: extractVisibleText,
+    func: extractPageTextForJournal,
+    args: [API_SUMMARY_TEXT_MAX],
   });
 
   const title = tab.title ?? "";
@@ -137,11 +205,12 @@ async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSum
 
   try {
     const hash = await sha256Hex(text ?? "");
-    const summary = await summarizeWithOpenAICompatible(effectiveOpenAICompatible(settings), {
-      title,
-      text: text ?? "",
-      url,
-    });
+    const input = { title, text: text ?? "", url };
+    const prov = settings.summarizationProvider ?? "openai";
+    const summary =
+      prov === "gemini"
+        ? await summarizeWithGemini(settings.gemini, input)
+        : await summarizeWithOpenAICompatible(effectiveOpenAICompatible(settings), input);
     page.content_hash = hash;
     page.latest_summary = summary;
     page.summary_title = null;
@@ -170,8 +239,8 @@ async function addDomainAndLogTab(
         error: "Could not read that tab. Close the popup, focus the page you want, and try again.",
       };
     }
-    const url = tab.url;
-    if (!url?.startsWith("http")) {
+    const url = await resolveHttpTabUrl(tab, tabId);
+    if (!url.startsWith("http")) {
       return { ok: false, error: "Only http(s) pages can be allowlisted." };
     }
     let hostname: string;
@@ -239,12 +308,18 @@ async function pageStatusForUrl(url: string): Promise<MsgPageStatusReply> {
 async function buildChatGptPromptForTab(
   tabId: number,
 ): Promise<{ ok: true; document: string } | { ok: false; error: string }> {
-  const tab = await chrome.tabs.get(tabId);
-  const url = tab.url;
-  if (!url?.startsWith("http")) return { ok: false, error: "Not a web page." };
+  let tab: chrome.tabs.Tab;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch {
+    return { ok: false, error: "Could not read that tab. Focus the page and try again." };
+  }
+  const url = await resolveHttpTabUrl(tab, tabId);
+  if (!url.startsWith("http")) return { ok: false, error: notWebPageMessage(url) };
   const [{ result: text } = { result: "" }] = await chrome.scripting.executeScript({
     target: { tabId },
-    func: extractVisibleText,
+    func: extractPageTextForJournal,
+    args: [MANUAL_JOURNAL_PAGE_CHAR_BUDGET],
   });
   const document = buildChatGptJournalDocument({
     pageUrl: url,
@@ -258,6 +333,10 @@ async function testLlmFromSettings(): Promise<{ ok: boolean; preview?: string; p
   try {
     const settings = await loadSettings();
     const prov = settings.summarizationProvider ?? "openai";
+    if (prov === "gemini") {
+      const preview = await testGeminiConnection(settings.gemini);
+      return { ok: true, preview, provider: "Google Gemini" };
+    }
     const opts = effectiveOpenAICompatible(settings);
     const preview = await testOpenAICompatibleConnection(opts);
     return {
@@ -287,8 +366,8 @@ async function saveManualJournalEntry(input: {
     page = await getPageById(db, input.pageId);
   } else if (input.tabId != null) {
     const tab = await chrome.tabs.get(input.tabId);
-    const url = tab.url;
-    if (!url?.startsWith("http")) return { ok: false, error: "Not a web page." };
+    const url = await resolveHttpTabUrl(tab, input.tabId);
+    if (!url.startsWith("http")) return { ok: false, error: notWebPageMessage(url) };
     const canonical = canonicalizeUrl(url);
     page = await getPageByCanonical(db, canonical);
     if (!page) {

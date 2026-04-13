@@ -32,5 +32,9 @@ function mergeDefaults(s: Partial<SettingsRecord>): SettingsRecord {
       ...DEFAULT_SETTINGS.ollamaLocal,
       ...s.ollamaLocal,
     },
+    gemini: {
+      ...DEFAULT_SETTINGS.gemini,
+      ...s.gemini,
+    },
   };
 }
