@@ -2,8 +2,7 @@
 *.log
 
 # Local-only docs (not published)
-GITHUB.md
-prompt.md
+local-only/
 .env
 .env.*
 !.env.example
