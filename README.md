@@ -53,9 +53,4 @@ Local Ollama needs the Chrome extension origin allowed (otherwise you may see HT
 | Install and Ollama notes | [`webcrumbtrail/README.md`](./webcrumbtrail/README.md) |
 | Technical design | [`webcrumbtrail/DESIGN.md`](./webcrumbtrail/DESIGN.md) |
 | Original build specification | [`prompt.md`](./prompt.md) |
-| Publishing to GitHub | [`docs/GITHUB.md`](./docs/GITHUB.md) |
 | License | [MIT](./LICENSE) |
-
-## GitHub
-
-To connect a remote and push, see [`docs/GITHUB.md`](./docs/GITHUB.md). If you use the GitHub CLI, your token needs the `repo` scope for create and push.
