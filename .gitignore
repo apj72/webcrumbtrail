@@ -1,8 +1,9 @@
 .DS_Store
 *.log
 
-# Local-only Git how-to (not published)
+# Local-only docs (not published)
 GITHUB.md
+prompt.md
 .env
 .env.*
 !.env.example

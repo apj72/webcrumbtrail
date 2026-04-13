@@ -52,5 +52,4 @@ Local Ollama needs the Chrome extension origin allowed (otherwise you may see HT
 |-------|----------|
 | Install and Ollama notes | [`webcrumbtrail/README.md`](./webcrumbtrail/README.md) |
 | Technical design | [`webcrumbtrail/DESIGN.md`](./webcrumbtrail/DESIGN.md) |
-| Original build specification | [`prompt.md`](./prompt.md) |
 | License | [MIT](./LICENSE) |
