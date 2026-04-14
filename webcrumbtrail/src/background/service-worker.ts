@@ -3,7 +3,19 @@ import { canonicalizeUrl } from "../lib/canonicalize";
 import { shouldCountNewVisit } from "../lib/dedupe";
 import { sha256Hex } from "../lib/hash";
 import { buildChatGptJournalDocument, MANUAL_JOURNAL_PAGE_CHAR_BUDGET } from "../lib/chatgpt-journal";
-import { getDB, getLastVisitForPage, getPageByCanonical, getPageById, putPage, addVisit } from "../lib/storage/idb";
+import { googleWorkspaceDocumentRollupKey } from "../lib/google-workspace-url";
+import { hostnameIsSharePoint, normalizeTitleForRollup } from "../lib/page-rollup";
+import {
+  getDB,
+  getLastVisitForPage,
+  getPageByCanonical,
+  getPageByDomainAndTitleKey,
+  getPageByGoogleWorkspaceDocKey,
+  getPageById,
+  mergeRollupDuplicatePages,
+  putPage,
+  addVisit,
+} from "../lib/storage/idb";
 import { loadSettings, saveSettings } from "../lib/storage/settings";
 import { exportAll } from "../lib/storage/export-import";
 import { effectiveOpenAICompatible } from "../lib/llm-provider";
@@ -35,6 +47,14 @@ async function handleVisit(
   const db = await getDB();
 
   let page = await getPageByCanonical(db, canonical);
+  const titleKey = normalizeTitleForRollup(title || "");
+  if (!page && titleKey && hostnameIsSharePoint(domain)) {
+    page = await getPageByDomainAndTitleKey(db, domain, titleKey);
+  }
+  const docKey = googleWorkspaceDocumentRollupKey(url);
+  if (!page && docKey) {
+    page = await getPageByGoogleWorkspaceDocKey(db, docKey);
+  }
   if (!page) {
     const id = crypto.randomUUID();
     page = {
@@ -174,7 +194,16 @@ async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSum
   const title = tab.title ?? "";
   const canonical = canonicalizeUrl(url);
   const db = await getDB();
+  const domain = new URL(url).hostname.toLowerCase();
   let page = await getPageByCanonical(db, canonical);
+  const sumTitleKey = normalizeTitleForRollup(title || "");
+  if (!page && sumTitleKey && hostnameIsSharePoint(domain)) {
+    page = await getPageByDomainAndTitleKey(db, domain, sumTitleKey);
+  }
+  const sumDocKey = googleWorkspaceDocumentRollupKey(url);
+  if (!page && sumDocKey) {
+    page = await getPageByGoogleWorkspaceDocKey(db, sumDocKey);
+  }
   if (!page) {
     const id = crypto.randomUUID();
     const now = Date.now();
@@ -182,7 +211,7 @@ async function runSummaryForTab(tabId: number, refresh: boolean): Promise<MsgSum
       id,
       canonical_url: canonical,
       original_url: url,
-      domain: new URL(url).hostname.toLowerCase(),
+      domain,
       title,
       first_seen_at: now,
       last_seen_at: now,
@@ -283,7 +312,7 @@ async function addDomainAndLogTab(
   }
 }
 
-async function pageStatusForUrl(url: string): Promise<MsgPageStatusReply> {
+async function pageStatusForUrl(url: string, tabTitle?: string): Promise<MsgPageStatusReply> {
   const settings = await loadSettings();
   let hostname = "";
   try {
@@ -301,7 +330,16 @@ async function pageStatusForUrl(url: string): Promise<MsgPageStatusReply> {
     return { allowed: false, canonical_url: canonical, page: null };
   }
   const db = await getDB();
-  const page = await getPageByCanonical(db, canonical);
+  const domain = hostname.toLowerCase();
+  let page = await getPageByCanonical(db, canonical);
+  const stKey = normalizeTitleForRollup(tabTitle ?? "");
+  if (!page && stKey && hostnameIsSharePoint(domain)) {
+    page = await getPageByDomainAndTitleKey(db, domain, stKey);
+  }
+  const statusDocKey = googleWorkspaceDocumentRollupKey(url);
+  if (!page && statusDocKey) {
+    page = await getPageByGoogleWorkspaceDocKey(db, statusDocKey);
+  }
   return { allowed: true, canonical_url: canonical, page: page ?? null };
 }
 
@@ -369,14 +407,23 @@ async function saveManualJournalEntry(input: {
     const url = await resolveHttpTabUrl(tab, input.tabId);
     if (!url.startsWith("http")) return { ok: false, error: notWebPageMessage(url) };
     const canonical = canonicalizeUrl(url);
+    const domain = new URL(url).hostname.toLowerCase();
     page = await getPageByCanonical(db, canonical);
+    const mjKey = normalizeTitleForRollup(tab.title ?? "");
+    if (!page && mjKey && hostnameIsSharePoint(domain)) {
+      page = await getPageByDomainAndTitleKey(db, domain, mjKey);
+    }
+    const mjDocKey = googleWorkspaceDocumentRollupKey(url);
+    if (!page && mjDocKey) {
+      page = await getPageByGoogleWorkspaceDocKey(db, mjDocKey);
+    }
     if (!page) {
       const now = Date.now();
       page = {
         id: crypto.randomUUID(),
         canonical_url: canonical,
         original_url: url,
-        domain: new URL(url).hostname.toLowerCase(),
+        domain,
         title: tab.title ?? "(no title)",
         first_seen_at: now,
         last_seen_at: now,
@@ -410,8 +457,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 chrome.runtime.onMessage.addListener((message: { type: string; [k: string]: unknown }, _s, sendResponse) => {
     if (message.type === "GET_PAGE_STATUS") {
-      const m = message as unknown as { url: string };
-      void pageStatusForUrl(m.url).then(sendResponse);
+      const m = message as unknown as { url: string; title?: string };
+      void pageStatusForUrl(m.url, m.title).then(sendResponse);
       return true;
     }
     if (message.type === "ADD_DOMAIN_AND_LOG") {
@@ -475,6 +522,9 @@ chrome.runtime.onInstalled.addListener(() => {
       contexts: ["page"],
     });
   });
+  void getDB()
+    .then((db) => mergeRollupDuplicatePages(db))
+    .catch(() => {});
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {

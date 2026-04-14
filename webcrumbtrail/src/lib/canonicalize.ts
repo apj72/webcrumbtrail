@@ -1,3 +1,5 @@
+import { applyGoogleWorkspaceCanonicalUrl } from "./google-workspace-url";
+
 /**
  * Strip common tracking query parameters. Domain-specific rules can preserve params via hooks.
  */
@@ -42,6 +44,9 @@ const domainPlugins: Record<string, DomainCanonicalizer> = {
   },
   "docs.redhat.com": (_ctx, url) => {
     url.hash = "";
+  },
+  "docs.google.com": (_ctx, url) => {
+    applyGoogleWorkspaceCanonicalUrl(url);
   },
   "*.sharepoint.com": (ctx, url) => {
     const keep = new Set([

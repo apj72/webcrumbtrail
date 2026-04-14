@@ -1,5 +1,5 @@
 import type { PageRecord, SettingsRecord, VisitEvent } from "../../shared/types";
-import { getDB } from "./idb";
+import { getDB, mergeRollupDuplicatePages } from "./idb";
 import { loadSettings, saveSettings } from "./settings";
 
 export type ExportBundle = {
@@ -47,6 +47,7 @@ export async function importBundle(bundle: ExportBundle, mode: "merge" | "replac
   }
   await tx.done;
   await saveSettings(bundle.settings);
+  await mergeRollupDuplicatePages(db);
 }
 
 /** CSV of pages for spreadsheets */

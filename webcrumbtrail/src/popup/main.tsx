@@ -69,6 +69,7 @@ function App() {
     const s = await chrome.runtime.sendMessage({
       type: "GET_PAGE_STATUS",
       url: tabUrl,
+      title: tab.title ?? "",
     });
     setStatus(s);
     const p = s.page as PageLite | null;
@@ -333,7 +334,15 @@ function App() {
       )}
 
       {msg && (
-        <p style={{ fontSize: 12, color: msg.includes("Failed") || msg.includes("Could not") ? "var(--danger)" : "var(--ok)" }}>{msg}</p>
+        <p
+          style={{
+            fontSize: 12,
+            color: msg.includes("Failed") || msg.includes("Could not") || msg.includes("API error") ? "var(--danger)" : "var(--ok)",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {msg}
+        </p>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

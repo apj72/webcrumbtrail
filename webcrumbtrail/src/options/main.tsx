@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import {
+  OLLAMA_ORIGINS_DOC_URL,
+  OLLAMA_ORIGINS_FOR_EXTENSIONS,
+  OLLAMA_ORIGINS_PERMISSIVE,
+} from "../lib/ollama-origins-hint";
 import type { DomainRule, SettingsRecord } from "../shared/types";
 import "../ui/styles.css";
 
@@ -337,8 +342,33 @@ function App() {
               Traffic stays on your machine; nothing is sent to OpenAI when this provider is selected.
             </p>
             <p style={{ color: "var(--muted)", fontSize: 12, borderLeft: "3px solid var(--border)", paddingLeft: 10 }}>
-              <strong>403 from Ollama?</strong> The extension uses a <code>chrome-extension://</code> origin. Quit Ollama, set{" "}
-              <code>OLLAMA_ORIGINS</code> to allow <code>chrome-extension://*</code> (see README: <em>Ollama 403 from WebCrumbTrail</em>), then restart Ollama.
+              <strong>403 from Ollama?</strong> For the default URL (<code>127.0.0.1:11434</code> or <code>localhost:11434</code>), WebCrumbTrail sets{" "}
+              <code>Origin</code> to an address Ollama already allows. Reload the extension after <code>npm run build</code>. If your port is not{" "}
+              <code>11434</code>, set <code>OLLAMA_ORIGINS</code> on Ollama (see below).
+            </p>
+            <p style={{ color: "var(--muted)", fontSize: 12, borderLeft: "3px solid var(--border)", paddingLeft: 10, marginTop: 8 }}>
+              <strong>Most reliable (bypasses the macOS app + launchctl):</strong> quit the Ollama menu bar app completely, then in Terminal run:{" "}
+              <code style={{ wordBreak: "break-all" }}>
+                OLLAMA_ORIGINS=&apos;{OLLAMA_ORIGINS_PERMISSIVE}&apos; ollama serve
+              </code>{" "}
+              and leave that process running. Test from another terminal with{" "}
+              <strong>Test API connection</strong> below.
+            </p>
+            <p style={{ color: "var(--muted)", fontSize: 12, borderLeft: "3px solid var(--border)", paddingLeft: 10, marginTop: 8 }}>
+              <strong>This extension’s Origin</strong> (if wildcards fail on your Ollama version, add it verbatim to <code>OLLAMA_ORIGINS</code>, comma-separated):{" "}
+              <code style={{ wordBreak: "break-all", display: "block", marginTop: 6 }}>
+                chrome-extension://{chrome.runtime?.id ?? "…"}
+              </code>
+            </p>
+            <p style={{ color: "var(--muted)", fontSize: 12, borderLeft: "3px solid var(--border)", paddingLeft: 10, marginTop: 8 }}>
+              <strong>Menu bar app instead:</strong> quit Ollama,{" "}
+              <code style={{ wordBreak: "break-all" }}>launchctl setenv OLLAMA_ORIGINS &apos;{OLLAMA_ORIGINS_PERMISSIVE}&apos;</code>, reopen Ollama, verify{" "}
+              <code>launchctl getenv OLLAMA_ORIGINS</code>. Then narrow to{" "}
+              <code style={{ wordBreak: "break-all" }}>{OLLAMA_ORIGINS_FOR_EXTENSIONS}</code> or the exact origin above.{" "}
+              <a href={OLLAMA_ORIGINS_DOC_URL} target="_blank" rel="noreferrer">
+                Ollama FAQ
+              </a>
+              .
             </p>
           </div>
         )}

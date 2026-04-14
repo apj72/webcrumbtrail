@@ -1,4 +1,9 @@
 import type { OpenAICompatibleSettings } from "../../shared/types";
+import {
+  OLLAMA_ORIGINS_DOC_URL,
+  OLLAMA_ORIGINS_FOR_EXTENSIONS,
+  OLLAMA_ORIGINS_PERMISSIVE,
+} from "../ollama-origins-hint";
 
 function isLikelyLocalOllama(baseUrl: string): boolean {
   try {
@@ -13,10 +18,24 @@ function isLikelyLocalOllama(baseUrl: string): boolean {
 
 /** Extra hint when Ollama returns 403 to a browser extension (origin allowlist). */
 function formatApiHttpError(status: number, errText: string, baseUrl: string): string {
-  let msg = `API error ${status}: ${errText.slice(0, 500)}`;
+  const body = errText.slice(0, 500).trim();
+  let msg = body ? `API error ${status}: ${body}` : `API error ${status}`;
   if (status === 403 && isLikelyLocalOllama(baseUrl)) {
-    msg +=
-      " — Ollama blocks unknown browser origins. Allow Chrome extensions: quit Ollama, then start it with OLLAMA_ORIGINS=chrome-extension://* (or OLLAMA_ORIGINS=* for local dev only). On macOS you can use: launchctl setenv OLLAMA_ORIGINS 'chrome-extension://*' then restart the Ollama app. See WebCrumbTrail README (Ollama 403).";
+    msg += [
+      "",
+      "If the API URL is http://127.0.0.1:11434 or http://localhost:11434, install the latest WebCrumbTrail build and reload the extension — it rewrites Origin for those hosts. Custom ports still need OLLAMA_ORIGINS on Ollama.",
+      "",
+      "Ollama is rejecting the extension Origin (CORS). Fix on the Ollama side, then retry.",
+      "",
+      "1) Quit Ollama completely (menu bar → Quit).",
+      `2) macOS (Ollama app): in Terminal run: launchctl setenv OLLAMA_ORIGINS '${OLLAMA_ORIGINS_PERMISSIVE}'`,
+      "   Then open Ollama again. Verify:  launchctl getenv OLLAMA_ORIGINS",
+      `   (should print ${OLLAMA_ORIGINS_PERMISSIVE}). If empty, log out/in once or disable Ollama “Open at Login”, reboot, setenv, then start Ollama manually.`,
+      `3) Narrower allowlist (recommended after it works):  OLLAMA_ORIGINS='${OLLAMA_ORIGINS_FOR_EXTENSIONS}'`,
+      `4) Or from Terminal:  OLLAMA_ORIGINS='${OLLAMA_ORIGINS_PERMISSIVE}' ollama serve`,
+      `Docs: ${OLLAMA_ORIGINS_DOC_URL}`,
+      "Extension: run npm run build in webcrumbtrail, then chrome://extensions → WebCrumbTrail → Reload so this help text stays current.",
+    ].join("\n");
   }
   return msg;
 }

@@ -1,5 +1,12 @@
 import { deleteDB, openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { PageRecord, VisitEvent } from "../../shared/types";
+import { canonicalizeUrl } from "../canonicalize";
+import { googleWorkspaceDocumentRollupKey } from "../google-workspace-url";
+import {
+  hostnameIsSharePoint,
+  normalizeTitleForRollup,
+  pickBestSummaryPage,
+} from "../page-rollup";
 
 /** Legacy IndexedDB name before the WebCrumbTrail rename; migrated once into DB_NAME. */
 const LEGACY_DB_NAME = "domain-journal";
@@ -123,6 +130,203 @@ export async function getPageByCanonical(
     cursor = await cursor.continue();
   }
   return undefined;
+}
+
+/**
+ * Find an existing page on SharePoint (or compatible host) with the same normalized title.
+ * Used when canonical URLs differ but the tab title matches (common for SharePoint).
+ */
+export async function getPageByDomainAndTitleKey(
+  db: IDBPDatabase<JournalDB>,
+  domain: string,
+  titleKey: string,
+): Promise<PageRecord | undefined> {
+  if (!titleKey || !hostnameIsSharePoint(domain)) return undefined;
+  const tx = db.transaction("pages", "readonly");
+  let cursor = await tx.store.openCursor();
+  while (cursor) {
+    const p = cursor.value;
+    if (p.domain === domain && normalizeTitleForRollup(p.title) === titleKey) return p;
+    cursor = await cursor.continue();
+  }
+  return undefined;
+}
+
+/**
+ * Match an existing Google Docs/Sheets/… row by stable file id when the canonical URL differs
+ * (legacy rows or alternate URL shapes).
+ */
+export async function getPageByGoogleWorkspaceDocKey(
+  db: IDBPDatabase<JournalDB>,
+  rollupKey: string,
+): Promise<PageRecord | undefined> {
+  if (!rollupKey) return undefined;
+  const tx = db.transaction("pages", "readonly");
+  let cursor = await tx.store.openCursor();
+  while (cursor) {
+    const p = cursor.value;
+    if (p.domain !== "docs.google.com") {
+      cursor = await cursor.continue();
+      continue;
+    }
+    const k =
+      googleWorkspaceDocumentRollupKey(p.canonical_url) ??
+      googleWorkspaceDocumentRollupKey(p.original_url);
+    if (k === rollupKey) return p;
+    cursor = await cursor.continue();
+  }
+  return undefined;
+}
+
+/**
+ * Merge pages that share the same normalized title on SharePoint hosts: re-point visits to the
+ * oldest row and delete duplicates. Safe to run repeatedly (idempotent).
+ */
+export async function mergeSharePointPagesByNormalizedTitle(
+  db: IDBPDatabase<JournalDB>,
+): Promise<number> {
+  const pages = await db.getAll("pages");
+  const groups = new Map<string, PageRecord[]>();
+  for (const p of pages) {
+    if (!hostnameIsSharePoint(p.domain)) continue;
+    const key = normalizeTitleForRollup(p.title);
+    if (!key) continue;
+    const gkey = `${p.domain}\0${key}`;
+    let g = groups.get(gkey);
+    if (!g) {
+      g = [];
+      groups.set(gkey, g);
+    }
+    g.push(p);
+  }
+
+  let removed = 0;
+  for (const arr of groups.values()) {
+    if (arr.length < 2) continue;
+    arr.sort((a, b) => a.first_seen_at - b.first_seen_at);
+    const primary = arr[0];
+    const secondaries = arr.slice(1);
+    const bestSummary = pickBestSummaryPage(arr);
+    const latest = arr.reduce((a, b) => (a.last_seen_at >= b.last_seen_at ? a : b));
+    const minFirst = Math.min(...arr.map((p) => p.first_seen_at));
+    const maxLast = Math.max(...arr.map((p) => p.last_seen_at));
+
+    const tx = db.transaction(["pages", "visits"], "readwrite");
+    const visitIdx = tx.objectStore("visits").index("by-page");
+    const pageStore = tx.objectStore("pages");
+
+    for (const sec of secondaries) {
+      let cursor = await visitIdx.openCursor(IDBKeyRange.only(sec.id));
+      while (cursor) {
+        const v = cursor.value;
+        await cursor.update({ ...v, page_id: primary.id });
+        cursor = await cursor.continue();
+      }
+      await pageStore.delete(sec.id);
+      removed++;
+    }
+
+    const mergedPrimary: PageRecord = {
+      ...primary,
+      first_seen_at: minFirst,
+      last_seen_at: maxLast,
+      title: latest.title || primary.title,
+      original_url: latest.original_url,
+      summary_title: bestSummary.summary_title ?? primary.summary_title,
+      latest_summary: bestSummary.latest_summary ?? primary.latest_summary,
+      latest_summary_updated_at:
+        bestSummary.latest_summary_updated_at ?? primary.latest_summary_updated_at,
+      summary_status: bestSummary.summary_status,
+      content_hash: bestSummary.content_hash ?? primary.content_hash,
+    };
+    await pageStore.put(mergedPrimary);
+    await tx.done;
+
+    const visitList = await listVisitsForPage(db, primary.id);
+    mergedPrimary.visit_count = Math.max(1, visitList.length);
+    await putPage(db, mergedPrimary);
+  }
+
+  return removed;
+}
+
+/**
+ * Merge docs.google.com pages that refer to the same file id (after URL normalization).
+ */
+export async function mergeGoogleWorkspaceDocsByRollupKey(
+  db: IDBPDatabase<JournalDB>,
+): Promise<number> {
+  const pages = await db.getAll("pages");
+  const groups = new Map<string, PageRecord[]>();
+  for (const p of pages) {
+    if (p.domain !== "docs.google.com") continue;
+    const key =
+      googleWorkspaceDocumentRollupKey(p.canonical_url) ??
+      googleWorkspaceDocumentRollupKey(p.original_url);
+    if (!key) continue;
+    let g = groups.get(key);
+    if (!g) {
+      g = [];
+      groups.set(key, g);
+    }
+    g.push(p);
+  }
+
+  let removed = 0;
+  for (const arr of groups.values()) {
+    if (arr.length < 2) continue;
+    arr.sort((a, b) => a.first_seen_at - b.first_seen_at);
+    const primary = arr[0];
+    const secondaries = arr.slice(1);
+    const bestSummary = pickBestSummaryPage(arr);
+    const latest = arr.reduce((a, b) => (a.last_seen_at >= b.last_seen_at ? a : b));
+    const minFirst = Math.min(...arr.map((p) => p.first_seen_at));
+    const maxLast = Math.max(...arr.map((p) => p.last_seen_at));
+
+    const tx = db.transaction(["pages", "visits"], "readwrite");
+    const visitIdx = tx.objectStore("visits").index("by-page");
+    const pageStore = tx.objectStore("pages");
+
+    for (const sec of secondaries) {
+      let cursor = await visitIdx.openCursor(IDBKeyRange.only(sec.id));
+      while (cursor) {
+        const v = cursor.value;
+        await cursor.update({ ...v, page_id: primary.id });
+        cursor = await cursor.continue();
+      }
+      await pageStore.delete(sec.id);
+      removed++;
+    }
+
+    const mergedPrimary: PageRecord = {
+      ...primary,
+      first_seen_at: minFirst,
+      last_seen_at: maxLast,
+      title: latest.title || primary.title,
+      original_url: latest.original_url,
+      canonical_url: canonicalizeUrl(latest.original_url),
+      summary_title: bestSummary.summary_title ?? primary.summary_title,
+      latest_summary: bestSummary.latest_summary ?? primary.latest_summary,
+      latest_summary_updated_at:
+        bestSummary.latest_summary_updated_at ?? primary.latest_summary_updated_at,
+      summary_status: bestSummary.summary_status,
+      content_hash: bestSummary.content_hash ?? primary.content_hash,
+    };
+    await pageStore.put(mergedPrimary);
+    await tx.done;
+
+    const visitList = await listVisitsForPage(db, primary.id);
+    mergedPrimary.visit_count = Math.max(1, visitList.length);
+    await putPage(db, mergedPrimary);
+  }
+
+  return removed;
+}
+
+/** SharePoint title rollup + Google Workspace file-id rollup (safe to call repeatedly). */
+export async function mergeRollupDuplicatePages(db: IDBPDatabase<JournalDB>): Promise<void> {
+  await mergeSharePointPagesByNormalizedTitle(db);
+  await mergeGoogleWorkspaceDocsByRollupKey(db);
 }
 
 export async function getPageById(

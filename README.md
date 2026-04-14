@@ -27,6 +27,7 @@ Popup
 Report viewer
 
 - Open from the popup. Filter and sort the table, open the detail pane for one page, export filtered rows as CSV, or export or import full JSON backups.
+- In the detail pane, **Open in new window** next to the URL opens the stored page in a new browser window (uses the last-seen URL when available).
 - Delete stored pages from the table or the detail pane. Deleting removes that page and all of its visit events. Turn on “Enable delete” at the top of the report before delete buttons work, so stray clicks do not remove data.
 
 Options
@@ -48,7 +49,7 @@ npm run build
 
 In the browser, open the extensions page (`chrome://extensions` or `brave://extensions`), enable developer mode, choose Load unpacked, and select the `webcrumbtrail/dist` folder inside this repository.
 
-Local Ollama needs the Chrome extension origin allowed (otherwise you may see HTTP 403). OpenAI, Gemini, or other cloud APIs need a key in Settings when you use that provider. Step-by-step setup, including Ollama and troubleshooting, is in [`webcrumbtrail/README.md`](./webcrumbtrail/README.md).
+Local **Ollama** on the default URL (`http://127.0.0.1:11434` or `localhost`) works without manual `OLLAMA_ORIGINS` configuration (the extension adjusts the request for CORS). Other ports or hosts may still need `OLLAMA_ORIGINS` on the Ollama side. **OpenAI**, **Gemini**, or other cloud APIs need a key in Settings when you use that provider. Install, build, providers, and troubleshooting are documented in [`webcrumbtrail/README.md`](./webcrumbtrail/README.md).
 
 ## Repository layout
 

@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { PageRecord, SettingsRecord, SummaryStatus, SummarizationProvider, VisitEvent } from "../shared/types";
 import { getActiveTabInLastFocusedNormalWindow } from "../lib/active-tab";
-import { deletePageById, getDB, listVisitsForPage } from "../lib/storage/idb";
+import { deletePageById, getDB, listVisitsForPage, mergeRollupDuplicatePages } from "../lib/storage/idb";
 import { parseChatGptJournalReply } from "../lib/chatgpt-journal";
 import { pagesToCsv, importBundle } from "../lib/storage/export-import";
 import "../ui/styles.css";
@@ -68,9 +68,13 @@ function App() {
   const [apiProvider, setApiProvider] = useState<SummarizationProvider>("openai");
   /** Must be turned on before Delete buttons work (default off). */
   const [deleteControlsEnabled, setDeleteControlsEnabled] = useState(false);
+  /** Page IDs marked for bulk delete (only used while delete mode is on). */
+  const [pendingDeleteIds, setPendingDeleteIds] = useState(() => new Set<string>());
+  const selectAllHeaderRef = useRef<HTMLInputElement>(null);
 
   const loadPages = useCallback(async () => {
     const db = await getDB();
+    await mergeRollupDuplicatePages(db);
     const all = await db.getAll("pages");
     setPages(all);
   }, []);
@@ -78,6 +82,10 @@ function App() {
   useEffect(() => {
     void loadPages();
   }, [loadPages]);
+
+  useEffect(() => {
+    if (!deleteControlsEnabled) setPendingDeleteIds(new Set());
+  }, [deleteControlsEnabled]);
 
   useEffect(() => {
     void chrome.runtime.sendMessage({ type: "GET_SETTINGS" }).then((st: SettingsRecord) => {
@@ -140,6 +148,42 @@ function App() {
     return list;
   }, [pages, search, domainFilter, summaryFilter, dateFrom, dateTo, sortKey, sortDir]);
 
+  const filteredIds = useMemo(() => filtered.map((p) => p.id), [filtered]);
+  const allFilteredMarked =
+    filtered.length > 0 && filtered.every((p) => pendingDeleteIds.has(p.id));
+  const someFilteredMarked = filtered.some((p) => pendingDeleteIds.has(p.id)) && !allFilteredMarked;
+
+  useEffect(() => {
+    const el = selectAllHeaderRef.current;
+    if (el) el.indeterminate = someFilteredMarked;
+  }, [someFilteredMarked, allFilteredMarked, filtered.length]);
+
+  const togglePendingDeleteId = (pageId: string) => {
+    if (!deleteControlsEnabled) return;
+    setPendingDeleteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(pageId)) next.delete(pageId);
+      else next.add(pageId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllFiltered = () => {
+    if (!deleteControlsEnabled) return;
+    setPendingDeleteIds((prev) => {
+      if (allFilteredMarked) {
+        const next = new Set(prev);
+        for (const id of filteredIds) next.delete(id);
+        return next;
+      }
+      return new Set([...prev, ...filteredIds]);
+    });
+  };
+
+  const clearPendingDelete = () => {
+    setPendingDeleteIds(new Set());
+  };
+
   const importJson = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -181,6 +225,13 @@ function App() {
     void chrome.tabs.create({ url });
   };
 
+  /** Prefer last-seen URL, fall back to canonical (normalized). */
+  const openStoredPageInNewWindow = (p: PageRecord) => {
+    const u = (p.original_url || p.canonical_url).trim();
+    if (!/^https?:\/\//i.test(u)) return;
+    void chrome.windows.create({ url: u });
+  };
+
   const removePage = async (pageId: string, title: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!deleteControlsEnabled) return;
@@ -199,6 +250,40 @@ function App() {
       if (selectedId === pageId) setSelectedId(null);
       await loadPages();
       setMsg("Page deleted.");
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Delete failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeSelectedPages = async () => {
+    if (!deleteControlsEnabled || pendingDeleteIds.size === 0) return;
+    const ids = [...pendingDeleteIds];
+    const titles = ids.map((id) => pages.find((p) => p.id === id)?.title || "(no title)");
+    const preview = titles
+      .slice(0, 8)
+      .map((t) => `• ${t.slice(0, 60)}${t.length > 60 ? "…" : ""}`)
+      .join("\n");
+    const more = ids.length > 8 ? `\n… and ${ids.length - 8} more` : "";
+    if (
+      !confirm(
+        `Delete ${ids.length} page(s) and their visit histories? This cannot be undone.\n\n${preview}${more}`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const db = await getDB();
+      for (const pageId of ids) {
+        await deletePageById(db, pageId);
+      }
+      if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+      setPendingDeleteIds(new Set());
+      await loadPages();
+      setMsg(ids.length === 1 ? "Page deleted." : `${ids.length} pages deleted.`);
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Delete failed.");
     } finally {
@@ -281,11 +366,47 @@ function App() {
               />
               Enable delete
             </label>
-            <span style={{ fontSize: 12, color: "var(--muted)", maxWidth: 420 }}>
+            <span style={{ fontSize: 12, color: "var(--muted)", maxWidth: 360 }}>
               {deleteControlsEnabled
-                ? "Delete buttons are active. Turn off when finished to avoid accidental removals."
+                ? "Tick rows to mark them, then use Delete selected. Or delete one row at a time. Turn off when finished."
                 : "Row and detail delete controls stay disabled until you turn this on."}
             </span>
+            {deleteControlsEnabled && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginLeft: "auto" }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy || filtered.length === 0}
+                  style={{ fontSize: 12, padding: "0.35rem 0.65rem" }}
+                  onClick={() => toggleSelectAllFiltered()}
+                >
+                  {allFilteredMarked ? "Unselect table" : "Select all in table"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy || pendingDeleteIds.size === 0}
+                  style={{ fontSize: 12, padding: "0.35rem 0.65rem" }}
+                  onClick={clearPendingDelete}
+                >
+                  Clear marks
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || pendingDeleteIds.size === 0}
+                  style={{
+                    fontSize: 12,
+                    padding: "0.35rem 0.75rem",
+                    color: "var(--danger)",
+                    borderColor: "var(--danger)",
+                    background: "rgba(239, 68, 68, 0.08)",
+                  }}
+                  onClick={() => void removeSelectedPages()}
+                >
+                  Delete selected{pendingDeleteIds.size > 0 ? ` (${pendingDeleteIds.size})` : ""}
+                </button>
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
           <h1 style={{ margin: 0, fontSize: 20 }}>WebCrumbTrail</h1>
@@ -386,6 +507,19 @@ function App() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>
+                {deleteControlsEnabled && (
+                  <th style={{ padding: "6px 4px", width: 36, textAlign: "center" }}>
+                    <input
+                      ref={selectAllHeaderRef}
+                      type="checkbox"
+                      title="Select or unselect all rows in the current table"
+                      checked={allFilteredMarked}
+                      onChange={() => toggleSelectAllFiltered()}
+                      disabled={busy || filtered.length === 0}
+                      style={{ width: 16, height: 16, cursor: busy ? "default" : "pointer" }}
+                    />
+                  </th>
+                )}
                 <th style={{ padding: "6px 8px" }}>Title</th>
                 <th style={{ padding: "6px 8px", minWidth: 200 }}>Summary</th>
                 <th style={{ padding: "6px 8px" }}>Domain</th>
@@ -396,7 +530,7 @@ function App() {
             </thead>
             <tbody>
               {filtered.map((p) => (
-                <tr
+                               <tr
                   key={p.id}
                   onClick={() => setSelectedId(p.id)}
                   style={{
@@ -405,6 +539,18 @@ function App() {
                     borderBottom: "1px solid var(--border)",
                   }}
                 >
+                  {deleteControlsEnabled && (
+                    <td style={{ padding: "8px 4px", textAlign: "center", verticalAlign: "top" }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={pendingDeleteIds.has(p.id)}
+                        onChange={() => togglePendingDeleteId(p.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={busy}
+                        style={{ width: 16, height: 16, cursor: busy ? "default" : "pointer" }}
+                      />
+                    </td>
+                  )}
                   <td style={{ padding: "8px", maxWidth: 220, verticalAlign: "top" }}>{p.title || "(no title)"}</td>
                   <td style={{ padding: "8px", verticalAlign: "top" }}>
                     <SummaryCell p={p} />
@@ -448,9 +594,28 @@ function App() {
             </button>
           </div>
           <h2 style={{ marginTop: 0, fontSize: 16 }}>{selected.title}</h2>
-          <p className="mono" style={{ fontSize: 11 }}>
-            {selected.canonical_url}
-          </p>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              alignItems: "flex-start",
+              marginBottom: 8,
+            }}
+          >
+            <p className="mono" style={{ fontSize: 11, margin: 0, flex: "1 1 220px", wordBreak: "break-word" }}>
+              {selected.canonical_url}
+            </p>
+            <button
+              type="button"
+              className="secondary"
+              style={{ flexShrink: 0 }}
+              onClick={() => openStoredPageInNewWindow(selected)}
+              disabled={!/^https?:\/\//i.test((selected.original_url || selected.canonical_url).trim())}
+            >
+              Open in new window
+            </button>
+          </div>
           <p style={{ fontSize: 12, color: "var(--muted)" }}>
             First: {formatTime(selected.first_seen_at)} · Last: {formatTime(selected.last_seen_at)} · Visits:{" "}
             {Math.max(1, selected.visit_count)}

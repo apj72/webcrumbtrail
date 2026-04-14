@@ -20,15 +20,27 @@ Open WebCrumbTrail → Settings from the popup or the extensions list. Add hostn
 
 ## Ollama (local)
 
-Install [Ollama](https://ollama.com), pull a model (for example `ollama pull llama3.2`), and allow extension origins so requests are not rejected with 403:
+Install [Ollama](https://ollama.com), pull a model (for example `ollama pull llama3.2` or `ollama pull qwen3:8b`). In Settings → Summarisation, choose **Ollama (local)**, set base URL (default `http://127.0.0.1:11434/v1`) and **model** to match `ollama list`, save, then use **Test API connection**.
+
+### Default URL / port (no `OLLAMA_ORIGINS` required)
+
+For API calls to **port 11434** on `127.0.0.1`, `localhost`, or `[::1]`, WebCrumbTrail uses **Declarative Net Request** rules to set the **`Origin` request header** to a value Ollama already allows (`http://127.0.0.1` or `http://localhost`). You normally **do not** need to configure `OLLAMA_ORIGINS` on Ollama for that setup.
+
+After pulling extension updates, run `npm run build` and **Reload** the extension on `chrome://extensions` so the ruleset is applied.
+
+### Custom host or port
+
+If the Ollama base URL uses **another port or host**, the built-in rules do not apply. Set `OLLAMA_ORIGINS` on the Ollama process (comma-separated origins). See the [Ollama FAQ](https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama). Example for a trusted machine:
 
 ```bash
-OLLAMA_ORIGINS='chrome-extension://*' ollama serve
+OLLAMA_ORIGINS='chrome-extension://*,moz-extension://*,safari-web-extension://*' ollama serve
 ```
 
-On macOS with the Ollama app, you may need `launchctl setenv` for `OLLAMA_ORIGINS` and a restart; see Ollama docs for your platform.
+On **macOS**, if the menu bar app does not pick up environment variables, run Ollama from a terminal with the variable on the same line, or use `launchctl setenv` and verify with `launchctl getenv OLLAMA_ORIGINS` before starting Ollama. **Linux (systemd):** add `Environment="OLLAMA_ORIGINS=..."` under `[Service]` in an override for `ollama.service`, then `daemon-reload` and restart. **Windows:** set a user environment variable and restart Ollama.
 
-In Settings → Summarisation, choose Ollama (local), set base URL (default `http://127.0.0.1:11434/v1`) and model to match `ollama list`, save, then use Test API connection.
+### HTTP 403 from Ollama
+
+Usually means the running Ollama process did not receive `OLLAMA_ORIGINS` (check the server log line for `OLLAMA_ORIGINS` — extension schemes appear only when set). Prefer the **default 11434 URL** so the extension can handle CORS; otherwise configure `OLLAMA_ORIGINS` as above. Reload WebCrumbTrail after `npm run build` if you still see an outdated error message.
 
 ## OpenAI (cloud)
 
@@ -63,5 +75,6 @@ Visit data stays on disk unless you use cloud API summarisation, in which case p
 | `src/lib/` | Allowlist, URLs, storage, LLM helpers |
 | `src/popup`, `src/options`, `src/report` | React UI |
 | `public/manifest.json` | Copied into `dist` |
+| `public/rules/ollama_cors.json` | DNR rules: `Origin` header for default local Ollama port |
 
 Architecture notes: [`DESIGN.md`](./DESIGN.md).

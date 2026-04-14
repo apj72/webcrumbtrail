@@ -18,4 +18,12 @@ describe("canonicalizeUrl", () => {
     const u = canonicalizeUrl("https://example.com/?fbclid=abc");
     expect(u).not.toContain("fbclid");
   });
+
+  it("normalizes Google Docs URLs to file id + /edit", () => {
+    const id = "1abcXYZ_9a";
+    const a = canonicalizeUrl(`https://docs.google.com/document/u/1/d/${id}/preview?tab=t.0&usp=sharing`);
+    const b = canonicalizeUrl(`https://docs.google.com/document/d/${id}/edit`);
+    expect(a).toBe(b);
+    expect(a).toBe(`https://docs.google.com/document/d/${id}/edit`);
+  });
 });

@@ -11,7 +11,7 @@ WebCrumbTrail is a Manifest V3 extension built with **Vite**, **React**, and **T
 | Service worker | Subscribes to `chrome.tabs.onCompleted` (via `tabs.onUpdated` with `status === 'complete'`); filters by allowlist and incognito policy; writes pages/visits to IndexedDB; extracts page text via `executeScript` using a content-aware helper (`main` / `article` / Google Docs editor surface, capped length); exposes messaging for popup/report/options |
 | IndexedDB (`idb`) | Stores `PageRecord` and `VisitEvent`; indexes on domain, last seen, page id, visited_at |
 | `chrome.storage.local` | Stores `SettingsRecord` including domain rules, `summarizationProvider` (`openai` \| `ollama` \| `gemini`), and separate OpenAI, Ollama, and Gemini fields |
-| Popup / Options / Report | React apps; report reads IndexedDB directly (same extension origin) |
+| Popup / Options / Report | React apps; report reads IndexedDB directly (same extension origin); detail pane can open the stored URL in a new window via `chrome.windows.create` |
 
 ## URL canonicalisation
 
@@ -35,7 +35,8 @@ For an existing page, a **new `VisitEvent`** is recorded only if `shouldCountNew
 ## Security / permissions
 
 - `host_permissions: <all_urls>` — required to read tab URLs for allowlist filtering and to inject the extraction script on user-initiated summary.
-- `storage`, `tabs`, `scripting`, `contextMenus` — settings, tab access, script injection, optional menu.
+- `storage`, `tabs`, `windows`, `scripting`, `contextMenus` — settings, tab access, **last-focused normal window** for “current tab” resolution, new window from report, script injection, optional menu.
+- `declarativeNetRequest` — static rules (`public/rules/ollama_cors.json`) that set `Origin` to `http://127.0.0.1` / `http://localhost` for `fetch` requests to the default local Ollama port **11434**, so Ollama’s CORS allowlist accepts API calls from the extension without requiring `OLLAMA_ORIGINS` on the server for that case.
 
 ## Future (Phase 3 hints)
 

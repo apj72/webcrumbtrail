@@ -15,7 +15,16 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "tabs", "windows", "scripting", "contextMenus"],
+  "permissions": ["storage", "tabs", "windows", "scripting", "contextMenus", "declarativeNetRequest"],
   "host_permissions": ["<all_urls>"],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ollama_local_origin",
+        "enabled": true,
+        "path": "rules/ollama_cors.json"
+      }
+    ]
+  },
   "incognito": "split"
 }

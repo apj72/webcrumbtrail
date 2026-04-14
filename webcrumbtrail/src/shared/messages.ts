@@ -3,6 +3,8 @@ import type { PageRecord, SettingsRecord, SummaryStatus } from "./types";
 export type MsgGetPageStatus = {
   type: "GET_PAGE_STATUS";
   url: string;
+  /** When set, SharePoint pages can match an existing row by title if the URL differs. */
+  title?: string;
 };
 
 /** Add current tab’s hostname to the allowlist and record this visit immediately. */
