@@ -8,5 +8,5 @@ local-only/
 !.env.example
 
 # Extension build output & deps
-webcrumbtrail/node_modules/
-webcrumbtrail/dist/
+extension/node_modules/
+extension/dist/

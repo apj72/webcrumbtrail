@@ -1,7 +1,7 @@
 # WebCrumbTrail
 
 <p align="center">
-  <img src="./webcrumbtrail/images/named_banner.png" alt="WebCrumbTrail" width="520" />
+  <img src="./extension/images/named_banner.png" alt="WebCrumbTrail" width="520" />
 </p>
 
 WebCrumbTrail is a local-first Chrome and Brave extension (Manifest V3). It records page visits only for hostnames you allow, and it can attach summaries when you ask for them. Summaries never run automatically.
@@ -42,19 +42,20 @@ Other
 ## Quick install
 
 ```bash
-cd webcrumbtrail
+cd extension
 npm install
 npm run build
 ```
 
-In the browser, open the extensions page (`chrome://extensions` or `brave://extensions`), enable developer mode, choose Load unpacked, and select the `webcrumbtrail/dist` folder inside this repository.
+In the browser, open the extensions page (`chrome://extensions` or `brave://extensions`), enable developer mode, choose Load unpacked, and select the `extension/dist` folder inside this repository.
 
-Local **Ollama** on the default URL (`http://127.0.0.1:11434` or `localhost`) works without manual `OLLAMA_ORIGINS` configuration (the extension adjusts the request for CORS). Other ports or hosts may still need `OLLAMA_ORIGINS` on the Ollama side. **OpenAI**, **Gemini**, or other cloud APIs need a key in Settings when you use that provider. Install, build, providers, and troubleshooting are documented in [`webcrumbtrail/README.md`](./webcrumbtrail/README.md).
+Local **Ollama** on the default URL (`http://127.0.0.1:11434` or `localhost`) works without manual `OLLAMA_ORIGINS` configuration (the extension adjusts the request for CORS). Other ports or hosts may still need `OLLAMA_ORIGINS` on the Ollama side. **OpenAI**, **Gemini**, or other cloud APIs need a key in Settings when you use that provider. Install, build, providers, and troubleshooting are documented in [`extension/README.md`](./extension/README.md).
 
 ## Repository layout
 
 | Topic | Location |
 |-------|----------|
-| Install and Ollama notes | [`webcrumbtrail/README.md`](./webcrumbtrail/README.md) |
-| Technical design | [`webcrumbtrail/DESIGN.md`](./webcrumbtrail/DESIGN.md) |
+| Install and Ollama notes | [`extension/README.md`](./extension/README.md) |
+| User guide | [`extension/USER_GUIDE.md`](./extension/USER_GUIDE.md) |
+| Technical design | [`extension/DESIGN.md`](./extension/DESIGN.md) |
 | License | [MIT](./LICENSE) |

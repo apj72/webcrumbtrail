@@ -34,7 +34,7 @@ function formatApiHttpError(status: number, errText: string, baseUrl: string): s
       `3) Narrower allowlist (recommended after it works):  OLLAMA_ORIGINS='${OLLAMA_ORIGINS_FOR_EXTENSIONS}'`,
       `4) Or from Terminal:  OLLAMA_ORIGINS='${OLLAMA_ORIGINS_PERMISSIVE}' ollama serve`,
       `Docs: ${OLLAMA_ORIGINS_DOC_URL}`,
-      "Extension: run npm run build in webcrumbtrail, then chrome://extensions → WebCrumbTrail → Reload so this help text stays current.",
+      "Extension: run npm run build in the extension/ folder, then chrome://extensions → WebCrumbTrail → Reload so this help text stays current.",
     ].join("\n");
   }
   return msg;

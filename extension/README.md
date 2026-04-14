@@ -7,12 +7,12 @@ This folder contains the extension source and build output. For an overview of b
 Prerequisites: Node.js 18+, npm, Chrome or Brave.
 
 ```bash
-cd webcrumbtrail
+cd extension
 npm install
 npm run build
 ```
 
-Load the unpacked extension from `dist/` (Developer mode → Load unpacked → choose `webcrumbtrail/dist`).
+Load the unpacked extension from `dist/` (Developer mode → Load unpacked → choose this repo’s `extension/dist` folder).
 
 ## First-time configuration
 
