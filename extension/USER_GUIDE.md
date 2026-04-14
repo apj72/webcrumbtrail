@@ -129,8 +129,6 @@ Figures (add your screenshots under `images/`):
 ![Extension popup in the browser window](images/image1.png)  
 *Figure 1 — Popup docked in the browser (overview).*
 
-These popup detail shots (figures 2–4) are 800×1200 PNGs; they are shown at **400×600** so the UI matches the scale of the original capture (not enlarged ~2×).
-
 <img src="images/image2.png" alt="Popup options — part 1" width="400" height="600" decoding="async" />
 
 *Figure 2 — Popup: options and actions (part 1).*
@@ -171,8 +169,6 @@ Figures:
 ## 7. Report viewer — layout and behaviour
 
 Open the **report** from the popup’s **Open report viewer** (or open `report.html` from the extension package).
-
-Wide screenshots below are **~780px** display width (about half the PNG pixel width on typical `@2×` captures) so they stay readable without dominating the page.
 
 <img src="images/image7.png" alt="Report viewer: full window with table" width="780" height="561" decoding="async" />
 
