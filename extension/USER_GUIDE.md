@@ -4,7 +4,7 @@ WebCrumbTrail is a Chrome or Brave extension (Manifest V3) that **logs visits on
 
 This guide covers **first-time setup** (OpenAI, Google Gemini, local Ollama), the **extension popup** used for capture and summaries, the **Settings** page, and the **report** layout.
 
-Screenshots live in the `images/` folder next to this file, including popup and settings figures (`image1`–`image6`) and report figures (`image7` …) used in §7.
+Screenshots live in the `images/` folder next to this file, including popup and settings figures (`image1`–`image6`) and report figures (`image7` …) used in section 7.
 
 ---
 
@@ -35,9 +35,9 @@ Before visits are stored, the page’s hostname must match your **domain allowli
 **Typical first steps:**
 
 1. Open **Settings** (from the popup’s **Settings** button, or from the extensions list → WebCrumbTrail → **Extension options**).
-2. Under **Domain allowlist**, add the sites you want to journal (see §3 for patterns). Click **Save settings**.
+2. Under **Domain allowlist**, add the sites you want to journal (see section 3 for patterns). Click **Save settings**.
 3. Optionally adjust **Visit dedupe window** (minutes): repeated visits to the same page within this window count as one visit for deduplication purposes (default **5** minutes).
-4. If you want API-backed summaries, enable **Enable summarisation features**, pick a **provider** (§4), fill in URLs/keys/models, save, and run **Test API connection**.
+4. If you want API-backed summaries, enable **Enable summarisation features**, pick a **provider** (section 4), fill in URLs/keys/models, save, and run **Test API connection**.
 
 **Privacy (short):** Visit data stays in **IndexedDB** on your machine. API keys live in **`chrome.storage.local`**. Page text is sent to your chosen provider **only** when you request a summary (or run the test). Ollama keeps traffic local.
 
@@ -189,11 +189,11 @@ Wide screenshots below are **~780px** display width (about half the PNG pixel wi
 
 <img src="images/image7.1.png" alt="Report top bar: Enable delete and actions" width="780" height="58" decoding="async" />
 
-*Figure 8 — §7.1: **Enable delete** off (default); row actions and export buttons.*
+*Figure 8 — section 7.1: **Enable delete** off (default); row actions and export buttons.*
 
 <img src="images/image7.1delete_selected.png" alt="Report with delete mode and Delete selected" width="780" height="482" decoding="async" />
 
-*Figure 9 — §7.1: **Enable delete** on, rows selected, **Delete selected** available.*
+*Figure 9 — section 7.1: **Enable delete** on, rows selected, **Delete selected** available.*
 
 ### 7.2 Filters and sorting
 
@@ -205,11 +205,11 @@ Wide screenshots below are **~780px** display width (about half the PNG pixel wi
 
 <img src="images/image7.2.png" alt="Report filter row: Search, Domain, Summary status, dates, sort" width="780" height="36" decoding="async" />
 
-*Figure 10 — §7.2: Filter and sort controls.*
+*Figure 10 — section 7.2: Filter and sort controls.*
 
 <img src="images/image7.2domain.png" alt="Domain filter dropdown open" width="780" height="304" decoding="async" />
 
-*Figure 11 — §7.2: **Domain** filter (example: choosing one domain).*
+*Figure 11 — section 7.2: **Domain** filter (example: choosing one domain).*
 
 ### 7.3 Table
 
@@ -223,15 +223,15 @@ Click a row to open the **detail pane** on the right.
 
 <img src="images/image7.3queued.png" alt="Summary column showing queued status badge" width="780" height="49" decoding="async" />
 
-*Figure 12 — §7.3: **Summary** column with **queued** status.*
+*Figure 12 — section 7.3: **Summary** column with **queued** status.*
 
 <img src="images/image7.3fail.png" alt="Summary column showing failed status badge" width="780" height="82" decoding="async" />
 
-*Figure 13 — §7.3: **Summary** column with **failed** status.*
+*Figure 13 — section 7.3: **Summary** column with **failed** status.*
 
 <img src="images/image7.3completed.png" alt="Summary column showing completed summary preview" width="780" height="160" decoding="async" />
 
-*Figure 14 — §7.3: **Summary** column with **completed** preview text.*
+*Figure 14 — section 7.3: **Summary** column with **completed** preview text.*
 
 ### 7.4 Detail pane
 
@@ -246,11 +246,11 @@ Click a row to open the **detail pane** on the right.
 
 <img src="images/image7.4.png" alt="Report with detail pane open beside table" width="780" height="561" decoding="async" />
 
-*Figure 15 — §7.4: Table plus **detail pane** (summary, API actions, manual journal, visit timeline).*
+*Figure 15 — section 7.4: Table plus **detail pane** (summary, API actions, manual journal, visit timeline).*
 
 <img src="images/image7.4.2.png" alt="Detail pane: manual journal and visit timeline" width="446" height="781" decoding="async" />
 
-*Figure 16 — §7.4: Lower detail area (**Manual journal**, **Visit timeline**).*
+*Figure 16 — section 7.4: Lower detail area (**Manual journal**, **Visit timeline**).*
 
 ---
 
@@ -261,7 +261,7 @@ Click a row to open the **detail pane** on the right.
 | No visits recorded | Hostname must match allowlist; use http/https; check incognito setting. |
 | “Not on allowlist” in popup | Add domain via Settings or **Add this domain…**. |
 | Summary stuck **queued** | Background work may still run; if it never completes, check network, provider status, and browser extension reload. |
-| **failed** status | Open Settings → **Test API connection**; for Ollama see §4.3 (403 / `OLLAMA_ORIGINS`). |
+| **failed** status | Open Settings → **Test API connection**; for Ollama see section 4.3 (403 / `OLLAMA_ORIGINS`). |
 | Ollama 403 on non-default port | Set `OLLAMA_ORIGINS` or use default `11434` on loopback. |
 
 ---
