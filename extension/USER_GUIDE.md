@@ -168,9 +168,13 @@ Figures:
 
 Open the **report** from the popup’s **Open report viewer** (or open `report.html` from the extension package).
 
+<img src="images/image7.1.open_report_button.png" alt="WebCrumbTrail popup: Open report viewer button" width="400" height="600" decoding="async" />
+
+*Figure 7 — **Open report viewer** in the extension popup.*
+
 <img src="images/image7.png" alt="Report viewer: full window with table" width="780" height="561" decoding="async" />
 
-*Figure 7 — Full report: header, filters, and main table.*
+*Figure 8 — Full report: header, filters, and main table.*
 
 ### 7.1 Top bar
 
@@ -183,11 +187,11 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 
 <img src="images/image7.1.png" alt="Report top bar: Enable delete and actions" width="780" height="58" decoding="async" />
 
-*Figure 8 — section 7.1: **Enable delete** off (default); row actions and export buttons.*
+*Figure 9 — section 7.1: **Enable delete** off (default); row actions and export buttons.*
 
 <img src="images/image7.1delete_selected.png" alt="Report with delete mode and Delete selected" width="780" height="482" decoding="async" />
 
-*Figure 9 — section 7.1: **Enable delete** on, rows selected, **Delete selected** available.*
+*Figure 10 — section 7.1: **Enable delete** on, rows selected, **Delete selected** available.*
 
 ### 7.2 Filters and sorting
 
@@ -199,11 +203,11 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 
 <img src="images/image7.2.png" alt="Report filter row: Search, Domain, Summary status, dates, sort" width="780" height="36" decoding="async" />
 
-*Figure 10 — section 7.2: Filter and sort controls.*
+*Figure 11 — section 7.2: Filter and sort controls.*
 
 <img src="images/image7.2domain.png" alt="Domain filter dropdown open" width="780" height="304" decoding="async" />
 
-*Figure 11 — section 7.2: **Domain** filter (example: choosing one domain).*
+*Figure 12 — section 7.2: **Domain** filter (example: choosing one domain).*
 
 ### 7.3 Table
 
@@ -217,15 +221,15 @@ Click a row to open the **detail pane** on the right.
 
 <img src="images/image7.3queued.png" alt="Summary column showing queued status badge" width="780" height="49" decoding="async" />
 
-*Figure 12 — section 7.3: **Summary** column with **queued** status.*
+*Figure 13 — section 7.3: **Summary** column with **queued** status.*
 
 <img src="images/image7.3fail.png" alt="Summary column showing failed status badge" width="780" height="82" decoding="async" />
 
-*Figure 13 — section 7.3: **Summary** column with **failed** status.*
+*Figure 14 — section 7.3: **Summary** column with **failed** status.*
 
 <img src="images/image7.3completed.png" alt="Summary column showing completed summary preview" width="780" height="160" decoding="async" />
 
-*Figure 14 — section 7.3: **Summary** column with **completed** preview text.*
+*Figure 15 — section 7.3: **Summary** column with **completed** preview text.*
 
 ### 7.4 Detail pane
 
@@ -240,11 +244,11 @@ Click a row to open the **detail pane** on the right.
 
 <img src="images/image7.4.png" alt="Report with detail pane open beside table" width="780" height="561" decoding="async" />
 
-*Figure 15 — section 7.4: Table plus **detail pane** (summary, API actions, manual journal, visit timeline).*
+*Figure 16 — section 7.4: Table plus **detail pane** (summary, API actions, manual journal, visit timeline).*
 
 <img src="images/image7.4.2.png" alt="Detail pane: manual journal and visit timeline" width="446" height="781" decoding="async" />
 
-*Figure 16 — section 7.4: Lower detail area (**Manual journal**, **Visit timeline**).*
+*Figure 17 — section 7.4: Lower detail area (**Manual journal**, **Visit timeline**).*
 
 ---
 
