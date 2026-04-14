@@ -227,13 +227,19 @@ Columns typically include **Title**, **Summary** (preview when completed with co
 
 Click a row to open the **detail pane** on the right.
 
+### Queued
+
 <img src="images/image7.3queued.png" alt="Summary column showing queued status badge" width="780" height="49" decoding="async" />
 
 *Figure 14 — section 7.3: **Summary** column with **queued** status.*
 
+### Failed
+
 <img src="images/image7.3fail.png" alt="Summary column showing failed status badge" width="780" height="82" decoding="async" />
 
 *Figure 15 — section 7.3: **Summary** column with **failed** status.*
+
+### Summary completed
 
 <img src="images/image7.3completed.png" alt="Summary column showing completed summary preview" width="780" height="160" decoding="async" />
 
@@ -253,6 +259,8 @@ Click a row to open the **detail pane** on the right.
 <img src="images/image7.4.png" alt="Report with detail pane open beside table" width="780" height="561" decoding="async" />
 
 *Figure 17 — section 7.4: Table plus **detail pane** (summary, API actions, manual journal, visit timeline).*
+
+### Lower detail area
 
 <img src="images/image7.4.2.png" alt="Detail pane: manual journal and visit timeline" width="446" height="781" decoding="async" />
 
