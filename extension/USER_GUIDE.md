@@ -122,6 +122,8 @@ Open the popup by clicking the WebCrumbTrail toolbar icon on a normal webpage.
 - **API summary:** **Request … summary** / **Refresh … summary** operate on the **currently focused tab** (the page behind the popup). Use **Refresh** after a completed summary to replace it; a plain **Request** may be rejected if a summary is already completed.
 - **Manual journal (web chat):** **Copy prompt for web chat** copies an excerpt for browser chat; paste the reply into **Paste web chat reply**, then **Fill fields from pasted reply** (expects `TITLE:` / `DESCRIPTION:` lines) or type **Journal title** and **What the page covers** yourself, then **Save manual journal entry**.
 
+### Popup in the browser
+
 ![Extension popup in the browser window](images/image1.png)  
 *Figure 1 — Popup docked in the browser (overview).*
 
@@ -151,6 +153,8 @@ Open the popup by clicking the WebCrumbTrail toolbar icon on a normal webpage.
 
 Open **Settings** from the extension popup: click **Settings** in the popup header (top right).
 
+### Settings in the popup header
+
 <img src="images/image6settings.png" alt="WebCrumbTrail popup: Settings button in header" width="400" height="182" decoding="async" />
 
 *Figure 5 — **Settings** in the extension popup.*
@@ -164,8 +168,12 @@ The full settings page is organised into:
 - **Test API connection** — saves settings, then verifies the active provider.
 - Privacy note that summarisation sends page text only when you request it.
 
+### Allowlist and general options
+
 ![Settings page — part 1](images/image5.png)  
 *Figure 6 — Settings (allowlist and general behaviour).*
+
+### Summarisation and API test
 
 ![Settings page — part 2](images/image6.png)  
 *Figure 7 — Settings (summarisation and test).*
@@ -176,9 +184,13 @@ The full settings page is organised into:
 
 Open the **report** from the popup’s **Open report viewer** (or open `report.html` from the extension package).
 
+### Open report viewer (popup)
+
 <img src="images/image7.1open_report_button.png" alt="WebCrumbTrail popup: Open report viewer button" width="400" height="182" decoding="async" />
 
 *Figure 8 — **Open report viewer** in the extension popup.*
+
+### Report window
 
 <img src="images/image7.png" alt="Report viewer: full window with table" width="780" height="561" decoding="async" />
 
@@ -193,9 +205,13 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 - **Import JSON** — restores from a file; the current implementation **replaces** existing **pages** and **visits** in IndexedDB, then loads the bundle (settings in the file are applied as part of import—use only trusted backups).
 - **Export CSV (filtered)** — exports rows that match the **current filters**, not necessarily the whole database.
 
+### Top bar — default (delete off)
+
 <img src="images/image7.1.png" alt="Report top bar: Enable delete and actions" width="780" height="58" decoding="async" />
 
 *Figure 10 — section 7.1: **Enable delete** off (default); row actions and export buttons.*
+
+### Top bar — delete mode and bulk actions
 
 <img src="images/image7.1delete_selected.png" alt="Report with delete mode and Delete selected" width="780" height="482" decoding="async" />
 
@@ -209,9 +225,13 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 - **From / To** — date range on **last seen** (end date is inclusive through that calendar day in the UI logic).
 - **Sort by** — last seen, first seen, visit count, domain; **Direction** ascending or descending.
 
+### Filter and sort row
+
 <img src="images/image7.2.png" alt="Report filter row: Search, Domain, Summary status, dates, sort" width="780" height="36" decoding="async" />
 
 *Figure 12 — section 7.2: Filter and sort controls.*
+
+### Search domain list
 
 <img src="images/image7.2domain.png" alt="Domain filter dropdown open" width="780" height="304" decoding="async" />
 
@@ -255,6 +275,8 @@ Click a row to open the **detail pane** on the right.
 - **API summary (active tab)** — switch to a tab showing that URL, then request or refresh (same rules as the popup).
 - **Manual journal (web chat)** — open URL, paste reply, **Save manual journal entry**.
 - **Visit timeline** — list of visits with time and title at visit.
+
+### Table and detail pane
 
 <img src="images/image7.4.png" alt="Report with detail pane open beside table" width="780" height="561" decoding="async" />
 
