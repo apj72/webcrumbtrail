@@ -4,8 +4,6 @@ WebCrumbTrail is a Chrome or Brave extension (Manifest V3) that **logs visits on
 
 This guide covers **first-time setup** (OpenAI, Google Gemini, local Ollama), the **extension popup** used for capture and summaries, the **Settings** page, and the **report** layout.
 
-Screenshots live in the `images/` folder next to this file, including popup and settings figures (`image1`–`image6`) and report figures (`image7` …) used in section 7.
-
 ---
 
 ## 1. Install and load the extension
