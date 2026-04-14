@@ -32,7 +32,7 @@ Before visits are stored, the page’s hostname must match your **domain allowli
 
 **Typical first steps:**
 
-1. Open **Settings** (from the popup’s **Settings** button, or from the extensions list → WebCrumbTrail → **Extension options**).
+1. Open **Settings** from the WebCrumbTrail toolbar popup (click **Settings** in the popup header).
 2. Under **Domain allowlist**, add the sites you want to journal (see section 3 for patterns). Click **Save settings**.
 3. Optionally adjust **Visit dedupe window** (minutes): repeated visits to the same page within this window count as one visit for deduplication purposes (default **5** minutes).
 4. If you want API-backed summaries, enable **Enable summarisation features**, pick a **provider** (section 4), fill in URLs/keys/models, save, and run **Test API connection**.
@@ -149,7 +149,13 @@ Open the popup by clicking the WebCrumbTrail toolbar icon on a normal webpage.
 
 ## 6. Settings page
 
-Open **Settings** from the popup or the extensions list. The page is organised into:
+Open **Settings** from the extension popup: click **Settings** in the popup header (top right).
+
+<img src="images/image6settings.png" alt="WebCrumbTrail popup: Settings button in header" width="400" height="182" decoding="async" />
+
+*Figure 5 — **Settings** in the extension popup.*
+
+The full settings page is organised into:
 
 - **Domain allowlist** — rows with pattern, enable/disable, add/remove.
 - **Visit dedupe window** — minutes between counted visits for the same page.
@@ -158,13 +164,11 @@ Open **Settings** from the popup or the extensions list. The page is organised i
 - **Test API connection** — saves settings, then verifies the active provider.
 - Privacy note that summarisation sends page text only when you request it.
 
-Figures:
-
 ![Settings page — part 1](images/image5.png)  
-*Figure 5 — Settings (allowlist and general behaviour).*
+*Figure 6 — Settings (allowlist and general behaviour).*
 
 ![Settings page — part 2](images/image6.png)  
-*Figure 6 — Settings (summarisation and test).*
+*Figure 7 — Settings (summarisation and test).*
 
 ---
 
@@ -174,11 +178,11 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 
 <img src="images/image7.1open_report_button.png" alt="WebCrumbTrail popup: Open report viewer button" width="400" height="182" decoding="async" />
 
-*Figure 7 — **Open report viewer** in the extension popup.*
+*Figure 8 — **Open report viewer** in the extension popup.*
 
 <img src="images/image7.png" alt="Report viewer: full window with table" width="780" height="561" decoding="async" />
 
-*Figure 8 — Full report: header, filters, and main table.*
+*Figure 9 — Full report: header, filters, and main table.*
 
 ### 7.1 Top bar
 
@@ -191,11 +195,11 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 
 <img src="images/image7.1.png" alt="Report top bar: Enable delete and actions" width="780" height="58" decoding="async" />
 
-*Figure 9 — section 7.1: **Enable delete** off (default); row actions and export buttons.*
+*Figure 10 — section 7.1: **Enable delete** off (default); row actions and export buttons.*
 
 <img src="images/image7.1delete_selected.png" alt="Report with delete mode and Delete selected" width="780" height="482" decoding="async" />
 
-*Figure 10 — section 7.1: **Enable delete** on, rows selected, **Delete selected** available.*
+*Figure 11 — section 7.1: **Enable delete** on, rows selected, **Delete selected** available.*
 
 ### 7.2 Filters and sorting
 
@@ -207,11 +211,11 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 
 <img src="images/image7.2.png" alt="Report filter row: Search, Domain, Summary status, dates, sort" width="780" height="36" decoding="async" />
 
-*Figure 11 — section 7.2: Filter and sort controls.*
+*Figure 12 — section 7.2: Filter and sort controls.*
 
 <img src="images/image7.2domain.png" alt="Domain filter dropdown open" width="780" height="304" decoding="async" />
 
-*Figure 12 — section 7.2: **Domain** filter (example: choosing one domain).*
+*Figure 13 — section 7.2: **Domain** filter (example: choosing one domain).*
 
 ### 7.3 Table
 
@@ -225,15 +229,15 @@ Click a row to open the **detail pane** on the right.
 
 <img src="images/image7.3queued.png" alt="Summary column showing queued status badge" width="780" height="49" decoding="async" />
 
-*Figure 13 — section 7.3: **Summary** column with **queued** status.*
+*Figure 14 — section 7.3: **Summary** column with **queued** status.*
 
 <img src="images/image7.3fail.png" alt="Summary column showing failed status badge" width="780" height="82" decoding="async" />
 
-*Figure 14 — section 7.3: **Summary** column with **failed** status.*
+*Figure 15 — section 7.3: **Summary** column with **failed** status.*
 
 <img src="images/image7.3completed.png" alt="Summary column showing completed summary preview" width="780" height="160" decoding="async" />
 
-*Figure 15 — section 7.3: **Summary** column with **completed** preview text.*
+*Figure 16 — section 7.3: **Summary** column with **completed** preview text.*
 
 ### 7.4 Detail pane
 
@@ -248,11 +252,11 @@ Click a row to open the **detail pane** on the right.
 
 <img src="images/image7.4.png" alt="Report with detail pane open beside table" width="780" height="561" decoding="async" />
 
-*Figure 16 — section 7.4: Table plus **detail pane** (summary, API actions, manual journal, visit timeline).*
+*Figure 17 — section 7.4: Table plus **detail pane** (summary, API actions, manual journal, visit timeline).*
 
 <img src="images/image7.4.2.png" alt="Detail pane: manual journal and visit timeline" width="446" height="781" decoding="async" />
 
-*Figure 17 — section 7.4: Lower detail area (**Manual journal**, **Visit timeline**).*
+*Figure 18 — section 7.4: Lower detail area (**Manual journal**, **Visit timeline**).*
 
 ---
 
