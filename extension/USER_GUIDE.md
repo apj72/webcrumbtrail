@@ -4,7 +4,7 @@ WebCrumbTrail is a Chrome or Brave extension (Manifest V3) that **logs visits on
 
 This guide covers **first-time setup** (OpenAI, Google Gemini, local Ollama), the **extension popup** used for capture and summaries, the **Settings** page, and the **report** layout.
 
-Screenshots live in the `images/` folder next to this file. This repo includes `image1.png` … `image6.png`; add more (for example for the report) as needed.
+Screenshots live in the `images/` folder next to this file, including popup and settings figures (`image1`–`image6`) and report figures (`image7` …) used in §7.
 
 ---
 
@@ -170,7 +170,13 @@ Figures:
 
 ## 7. Report viewer — layout and behaviour
 
-Open the **report** from the popup (or the extension’s report page, depending on your build).
+Open the **report** from the popup’s **Open report viewer** (or open `report.html` from the extension package).
+
+Wide screenshots below are **~780px** display width (about half the PNG pixel width on typical `@2×` captures) so they stay readable without dominating the page.
+
+<img src="images/image7.png" alt="Report viewer: full window with table" width="780" height="561" decoding="async" />
+
+*Figure 7 — Full report: header, filters, and main table.*
 
 ### 7.1 Top bar
 
@@ -181,6 +187,14 @@ Open the **report** from the popup (or the extension’s report page, depending 
 - **Import JSON** — restores from a file; the current implementation **replaces** existing **pages** and **visits** in IndexedDB, then loads the bundle (settings in the file are applied as part of import—use only trusted backups).
 - **Export CSV (filtered)** — exports rows that match the **current filters**, not necessarily the whole database.
 
+<img src="images/image7.1.png" alt="Report top bar: Enable delete and actions" width="780" height="58" decoding="async" />
+
+*Figure 8 — §7.1: **Enable delete** off (default); row actions and export buttons.*
+
+<img src="images/image7.1delete_selected.png" alt="Report with delete mode and Delete selected" width="780" height="482" decoding="async" />
+
+*Figure 9 — §7.1: **Enable delete** on, rows selected, **Delete selected** available.*
+
 ### 7.2 Filters and sorting
 
 - **Search** — matches title, URL, journal title, or summary text.
@@ -188,6 +202,14 @@ Open the **report** from the popup (or the extension’s report page, depending 
 - **Summary status** — `not_requested`, `queued`, `completed`, `failed`, or all.
 - **From / To** — date range on **last seen** (end date is inclusive through that calendar day in the UI logic).
 - **Sort by** — last seen, first seen, visit count, domain; **Direction** ascending or descending.
+
+<img src="images/image7.2.png" alt="Report filter row: Search, Domain, Summary status, dates, sort" width="780" height="36" decoding="async" />
+
+*Figure 10 — §7.2: Filter and sort controls.*
+
+<img src="images/image7.2domain.png" alt="Domain filter dropdown open" width="780" height="304" decoding="async" />
+
+*Figure 11 — §7.2: **Domain** filter (example: choosing one domain).*
 
 ### 7.3 Table
 
@@ -198,6 +220,18 @@ Columns typically include **Title**, **Summary** (preview when completed with co
 - **Completed:** Summary succeeded; the cell shows a short preview when title or body exists.
 
 Click a row to open the **detail pane** on the right.
+
+<img src="images/image7.3queued.png" alt="Summary column showing queued status badge" width="780" height="49" decoding="async" />
+
+*Figure 12 — §7.3: **Summary** column with **queued** status.*
+
+<img src="images/image7.3fail.png" alt="Summary column showing failed status badge" width="780" height="82" decoding="async" />
+
+*Figure 13 — §7.3: **Summary** column with **failed** status.*
+
+<img src="images/image7.3completed.png" alt="Summary column showing completed summary preview" width="780" height="160" decoding="async" />
+
+*Figure 14 — §7.3: **Summary** column with **completed** preview text.*
 
 ### 7.4 Detail pane
 
@@ -210,18 +244,13 @@ Click a row to open the **detail pane** on the right.
 - **Manual journal (web chat)** — open URL, paste reply, **Save manual journal entry**.
 - **Visit timeline** — list of visits with time and title at visit.
 
-### 7.5 Optional extra figures
+<img src="images/image7.4.png" alt="Report with detail pane open beside table" width="780" height="561" decoding="async" />
 
-You can extend this guide with more screenshots, for example:
+*Figure 15 — §7.4: Table plus **detail pane** (summary, API actions, manual journal, visit timeline).*
 
-- ![Report overview](images/image7.png)  
- *Figure 7 — Report table and filters (placeholder until you add the file).*
-- ![Enable delete and row selection](images/image8.png)  
-  *Figure 8 — Delete mode and checkboxes (placeholder).*
-- ![Queued and failed rows](images/image9.png)  
-  *Figure 9 — Summary column showing queued and failed badges (placeholder).*
+<img src="images/image7.4.2.png" alt="Detail pane: manual journal and visit timeline" width="446" height="781" decoding="async" />
 
-Rename or remove these image references if you use different filenames.
+*Figure 16 — §7.4: Lower detail area (**Manual journal**, **Visit timeline**).*
 
 ---
 
@@ -234,12 +263,6 @@ Rename or remove these image references if you use different filenames.
 | Summary stuck **queued** | Background work may still run; if it never completes, check network, provider status, and browser extension reload. |
 | **failed** status | Open Settings → **Test API connection**; for Ollama see §4.3 (403 / `OLLAMA_ORIGINS`). |
 | Ollama 403 on non-default port | Set `OLLAMA_ORIGINS` or use default `11434` on loopback. |
-
----
-
-## 9. Publishing note (internal GitLab)
-
-To publish this repository to an internal GitLab instance (for example `https://gitlab.cee.redhat.com/telco-partner-architecture`), follow your organisation’s source-control process: create the project behind the VPN/firewall, add a remote, and push; ensure **secrets (API keys) are never committed**—they belong only in each user’s browser storage after configuration.
 
 ---
 
