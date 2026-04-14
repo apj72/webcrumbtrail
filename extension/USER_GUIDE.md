@@ -168,7 +168,7 @@ Figures:
 
 Open the **report** from the popup’s **Open report viewer** (or open `report.html` from the extension package).
 
-<img src="images/image7.1.open_report_button.png" alt="WebCrumbTrail popup: Open report viewer button" width="400" height="600" decoding="async" />
+<img src="images/image7.1open_report_button.png" alt="WebCrumbTrail popup: Open report viewer button" width="400" height="182" decoding="async" />
 
 *Figure 7 — **Open report viewer** in the extension popup.*
 
