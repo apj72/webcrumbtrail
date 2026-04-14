@@ -129,10 +129,14 @@ Figures (add your screenshots under `images/`):
 ![Extension popup in the browser window](images/image1.png)  
 *Figure 1 — Popup docked in the browser (overview).*
 
-![Popup options — part 1](images/image2.png)  
+These popup detail shots are 800×1200 PNGs; they are shown at **400×600** so the UI matches the scale of the original capture (not enlarged ~2×).
+
+<img src="images/image2.png" alt="Popup options — part 1" width="400" height="600" decoding="async" />
+
 *Figure 2 — Popup: options and actions (part 1).*
 
-![Popup options — part 2](images/image3.png)  
+<img src="images/image3.png" alt="Popup options — part 2" width="400" height="600" decoding="async" />
+
 *Figure 3 — Popup: options and actions (part 2).*
 
 ![Ollama summary saved confirmation in the popup](images/image4.png)  
