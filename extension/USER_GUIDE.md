@@ -122,18 +122,22 @@ Open the popup by clicking the WebCrumbTrail toolbar icon on a normal webpage.
 - **API summary:** **Request … summary** / **Refresh … summary** operate on the **currently focused tab** (the page behind the popup). Use **Refresh** after a completed summary to replace it; a plain **Request** may be rejected if a summary is already completed.
 - **Manual journal (web chat):** **Copy prompt for web chat** copies an excerpt for browser chat; paste the reply into **Paste web chat reply**, then **Fill fields from pasted reply** (expects `TITLE:` / `DESCRIPTION:` lines) or type **Journal title** and **What the page covers** yourself, then **Save manual journal entry**.
 
-Figures (add your screenshots under `images/`):
-
 ![Extension popup in the browser window](images/image1.png)  
 *Figure 1 — Popup docked in the browser (overview).*
+
+### Extension UI
 
 <img src="images/image2.png" alt="Popup options — part 1" width="400" height="600" decoding="async" />
 
 *Figure 2 — Popup: options and actions (part 1).*
 
+### Extension UI continue...
+
 <img src="images/image3.png" alt="Popup options — part 2" width="400" height="600" decoding="async" />
 
 *Figure 3 — Popup: options and actions (part 2).*
+
+### Ollama summary notification
 
 <img src="images/image4.png" alt="Ollama summary saved confirmation in the popup" width="400" height="600" decoding="async" />
 
