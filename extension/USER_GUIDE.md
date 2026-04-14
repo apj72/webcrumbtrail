@@ -129,7 +129,7 @@ Figures (add your screenshots under `images/`):
 ![Extension popup in the browser window](images/image1.png)  
 *Figure 1 — Popup docked in the browser (overview).*
 
-These popup detail shots are 800×1200 PNGs; they are shown at **400×600** so the UI matches the scale of the original capture (not enlarged ~2×).
+These popup detail shots (figures 2–4) are 800×1200 PNGs; they are shown at **400×600** so the UI matches the scale of the original capture (not enlarged ~2×).
 
 <img src="images/image2.png" alt="Popup options — part 1" width="400" height="600" decoding="async" />
 
@@ -139,7 +139,8 @@ These popup detail shots are 800×1200 PNGs; they are shown at **400×600** so t
 
 *Figure 3 — Popup: options and actions (part 2).*
 
-![Ollama summary saved confirmation in the popup](images/image4.png)  
+<img src="images/image4.png" alt="Ollama summary saved confirmation in the popup" width="400" height="600" decoding="async" />
+
 *Figure 4 — Example success message after an Ollama summary is saved.*
 
 **Context menu:** When summarisation is enabled, you can also use the context menu action **Request WebCrumbTrail summary for this page** on a tab.
