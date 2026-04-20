@@ -32,6 +32,31 @@ export interface VisitEvent {
   title_at_visit: string;
 }
 
+/** One tab row stored in a session overview snapshot. */
+export interface SessionTabSnapshot {
+  windowId: number;
+  windowFocused: boolean;
+  tabIndex: number;
+  tabId: number;
+  title: string;
+  url: string;
+  groupId: string;
+  groupLabel: string;
+  sortOrder: number;
+  pinned: boolean;
+  audible: boolean;
+  active: boolean;
+}
+
+/** Point-in-time capture of all normal windows/tabs from Session overview. */
+export interface SessionSnapshotRecord {
+  id: string;
+  captured_at: number;
+  tab_count: number;
+  window_count: number;
+  tabs: SessionTabSnapshot[];
+}
+
 export interface OpenAICompatibleSettings {
   baseUrl: string;
   model: string;

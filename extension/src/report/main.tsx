@@ -476,6 +476,13 @@ function App() {
           <button type="button" className="secondary" onClick={() => void chrome.runtime.openOptionsPage()}>
             Settings
           </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL("session.html") })}
+          >
+            Session overview
+          </button>
           <button type="button" className="secondary" onClick={() => void exportJson()}>
             Export JSON
           </button>

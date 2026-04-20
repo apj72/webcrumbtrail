@@ -1,5 +1,5 @@
 import { deleteDB, openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { PageRecord, VisitEvent } from "../../shared/types";
+import type { PageRecord, SessionSnapshotRecord, VisitEvent } from "../../shared/types";
 import { canonicalizeUrl } from "../canonicalize";
 import { googleWorkspaceDocumentRollupKey } from "../google-workspace-url";
 import {
@@ -11,7 +11,7 @@ import {
 /** Legacy IndexedDB name before the WebCrumbTrail rename; migrated once into DB_NAME. */
 const LEGACY_DB_NAME = "domain-journal";
 const DB_NAME = "webcrumbtrail";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 interface JournalDB extends DBSchema {
   pages: {
@@ -23,6 +23,11 @@ interface JournalDB extends DBSchema {
     key: string;
     value: VisitEvent;
     indexes: { "by-page": string; "by-visited-at": number };
+  };
+  session_snapshots: {
+    key: string;
+    value: SessionSnapshotRecord;
+    indexes: { "by-captured-at": number };
   };
 }
 
@@ -53,6 +58,10 @@ async function runJournalSchemaUpgrade(
       cursor = await cursor.continue();
     }
     await tx.done;
+  }
+  if (oldVersion < 3) {
+    const snapStore = db.createObjectStore("session_snapshots", { keyPath: "id" });
+    snapStore.createIndex("by-captured-at", "captured_at");
   }
 }
 
@@ -362,9 +371,33 @@ export async function getLastVisitForPage(
 }
 
 export async function deleteAllData(db: IDBPDatabase<JournalDB>): Promise<void> {
-  const tx = db.transaction(["pages", "visits"], "readwrite");
-  await Promise.all([tx.objectStore("pages").clear(), tx.objectStore("visits").clear()]);
+  const tx = db.transaction(["pages", "visits", "session_snapshots"], "readwrite");
+  await Promise.all([
+    tx.objectStore("pages").clear(),
+    tx.objectStore("visits").clear(),
+    tx.objectStore("session_snapshots").clear(),
+  ]);
   await tx.done;
+}
+
+export async function putSessionSnapshot(
+  db: IDBPDatabase<JournalDB>,
+  record: SessionSnapshotRecord,
+): Promise<void> {
+  await db.put("session_snapshots", record);
+}
+
+export async function listSessionSnapshotsDesc(
+  db: IDBPDatabase<JournalDB>,
+  limit = 100,
+): Promise<SessionSnapshotRecord[]> {
+  const rows = await db.getAll("session_snapshots");
+  rows.sort((a, b) => b.captured_at - a.captured_at);
+  return rows.slice(0, Math.max(0, limit));
+}
+
+export async function deleteSessionSnapshot(db: IDBPDatabase<JournalDB>, id: string): Promise<void> {
+  await db.delete("session_snapshots", id);
 }
 
 /** Remove one page and all visit events that reference it. */

@@ -89,6 +89,11 @@ function App() {
     void chrome.tabs.create({ url });
   };
 
+  const openSessionOverview = () => {
+    const url = chrome.runtime.getURL("session.html");
+    void chrome.tabs.create({ url });
+  };
+
   const openSettings = () => {
     void chrome.runtime.openOptionsPage();
   };
@@ -265,6 +270,12 @@ function App() {
         </button>
         <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
           Browse logged pages, filters, CSV/JSON, and manual journal paste — separate from visit logging on this tab.
+        </p>
+        <button type="button" className="secondary" onClick={openSessionOverview} style={{ width: "100%", marginTop: 8 }}>
+          Session overview (all tabs)
+        </button>
+        <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
+          Group open windows by site (Jira, Docs, Red Hat, …), log snapshots, bulk-close selected tabs.
         </p>
       </div>
 

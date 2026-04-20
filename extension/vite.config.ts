@@ -15,6 +15,7 @@ export default defineConfig({
         popup: resolve(__dirname, "popup.html"),
         options: resolve(__dirname, "options.html"),
         report: resolve(__dirname, "report.html"),
+        session: resolve(__dirname, "session.html"),
         background: resolve(__dirname, "src/background/service-worker.ts"),
       },
       output: {
