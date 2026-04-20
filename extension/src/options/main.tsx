@@ -152,6 +152,46 @@ function App() {
       </section>
 
       <section className="card" style={{ marginBottom: 16 }}>
+        <h2 style={{ marginTop: 0, fontSize: 16 }}>Do not log (URL prefix)</h2>
+        <p style={{ color: "var(--muted)", fontSize: 13 }}>
+          If a page URL <strong>starts with</strong> one of these strings, WebCrumbTrail skips recording the visit (no report row, no visit event). Use full URL prefixes including <code>https://</code> and query keys; anything after the prefix is ignored for matching.
+        </p>
+        {s.urlLoggingExcludePrefixes.map((prefix, index) => (
+          <div key={index} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+            <input
+              style={{ flex: 1, minWidth: 0 }}
+              value={prefix}
+              placeholder="https://example.com/path?param="
+              onChange={(e) => {
+                const next = [...s.urlLoggingExcludePrefixes];
+                next[index] = e.target.value;
+                setS({ ...s, urlLoggingExcludePrefixes: next });
+              }}
+            />
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                setS({
+                  ...s,
+                  urlLoggingExcludePrefixes: s.urlLoggingExcludePrefixes.filter((_, i) => i !== index),
+                })
+              }
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => setS({ ...s, urlLoggingExcludePrefixes: [...s.urlLoggingExcludePrefixes, ""] })}
+        >
+          Add URL prefix
+        </button>
+      </section>
+
+      <section className="card" style={{ marginBottom: 16 }}>
         <h2 style={{ marginTop: 0, fontSize: 16 }}>Summarisation</h2>
         <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input

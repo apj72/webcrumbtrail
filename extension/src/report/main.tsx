@@ -26,6 +26,69 @@ function truncateText(s: string, max: number): string {
   return t.slice(0, max - 1) + "…";
 }
 
+/** `YYYY-MM-DD` in local time (not UTC) for `<input type="date">`. */
+function localDateInputValue(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function DateFilterField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const defaultToTodayIfEmpty = () => {
+    if (!value) onChange(localDateInputValue());
+  };
+
+  const openCalendar = () => {
+    defaultToTodayIfEmpty();
+    window.setTimeout(() => {
+      const el = inputRef.current;
+      if (el && typeof el.showPicker === "function") {
+        void el.showPicker();
+      } else {
+        el?.focus();
+      }
+    }, 0);
+  };
+
+  return (
+    <label style={{ margin: 0 }}>
+      {label}
+      <div style={{ display: "flex", gap: 6, alignItems: "stretch", marginTop: 4 }}>
+        <input
+          ref={inputRef}
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onClick={defaultToTodayIfEmpty}
+          onFocus={defaultToTodayIfEmpty}
+          style={{ flex: 1, minWidth: 0, width: "100%" }}
+        />
+        <button
+          type="button"
+          className="secondary"
+          onClick={openCalendar}
+          title="Open calendar"
+          aria-label={`Open calendar for ${label}`}
+          style={{ padding: "0.35rem 0.5rem", flexShrink: 0, lineHeight: 1 }}
+        >
+          📅
+        </button>
+      </div>
+    </label>
+  );
+}
+
 function SummaryCell({ p }: { p: PageRecord }) {
   const hasBody = !!(p.latest_summary?.trim() || p.summary_title?.trim());
   const done = p.summary_status === "completed" && hasBody;
@@ -477,14 +540,8 @@ function App() {
               <option value="failed">Failed</option>
             </select>
           </label>
-          <label>
-            From
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ width: "100%" }} />
-          </label>
-          <label>
-            To
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ width: "100%" }} />
-          </label>
+          <DateFilterField label="From" value={dateFrom} onChange={setDateFrom} />
+          <DateFilterField label="To" value={dateTo} onChange={setDateTo} />
           <label>
             Sort by
             <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} style={{ width: "100%" }}>

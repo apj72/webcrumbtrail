@@ -1,6 +1,7 @@
 import { hostMatchesRules } from "../lib/allowlist";
 import { canonicalizeUrl } from "../lib/canonicalize";
 import { shouldCountNewVisit } from "../lib/dedupe";
+import { shouldSkipLoggingForUrl } from "../lib/url-logging-exclude";
 import { sha256Hex } from "../lib/hash";
 import { buildChatGptJournalDocument, MANUAL_JOURNAL_PAGE_CHAR_BUDGET } from "../lib/chatgpt-journal";
 import { googleWorkspaceDocumentRollupKey } from "../lib/google-workspace-url";
@@ -40,6 +41,7 @@ async function handleVisit(
     return;
   }
   if (!hostMatchesRules(hostname, settings.domainRules)) return;
+  if (shouldSkipLoggingForUrl(url, settings.urlLoggingExcludePrefixes)) return;
 
   const canonical = canonicalizeUrl(url);
   const domain = hostname.toLowerCase();

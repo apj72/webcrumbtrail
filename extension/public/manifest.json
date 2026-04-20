@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebCrumbTrail",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Local-first trail of visits to allowlisted domains with optional manual summaries.",
   "action": {
     "default_popup": "popup.html",
@@ -15,8 +15,17 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "tabs", "windows", "scripting", "contextMenus", "declarativeNetRequest"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "storage",
+    "tabs",
+    "windows",
+    "scripting",
+    "contextMenus",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "declarative_net_request": {
     "rule_resources": [
       {

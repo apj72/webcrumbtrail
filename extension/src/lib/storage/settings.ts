@@ -10,7 +10,13 @@ export async function loadSettings(): Promise<SettingsRecord> {
     await chrome.storage.local.set({ [KEY]: raw });
     await chrome.storage.local.remove(LEGACY_KEY);
   }
-  if (!raw) return { ...DEFAULT_SETTINGS, domainRules: [...DEFAULT_SETTINGS.domainRules] };
+  if (!raw) {
+    return {
+      ...DEFAULT_SETTINGS,
+      domainRules: [...DEFAULT_SETTINGS.domainRules],
+      urlLoggingExcludePrefixes: [...DEFAULT_SETTINGS.urlLoggingExcludePrefixes],
+    };
+  }
   return mergeDefaults(raw);
 }
 
@@ -23,6 +29,9 @@ function mergeDefaults(s: Partial<SettingsRecord>): SettingsRecord {
     ...DEFAULT_SETTINGS,
     ...s,
     domainRules: s.domainRules?.length ? s.domainRules : [...DEFAULT_SETTINGS.domainRules],
+    urlLoggingExcludePrefixes: Array.isArray(s.urlLoggingExcludePrefixes)
+      ? s.urlLoggingExcludePrefixes
+      : [...DEFAULT_SETTINGS.urlLoggingExcludePrefixes],
     summarizationProvider: s.summarizationProvider ?? DEFAULT_SETTINGS.summarizationProvider,
     openaiCompatible: {
       ...DEFAULT_SETTINGS.openaiCompatible,

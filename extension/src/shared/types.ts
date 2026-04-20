@@ -57,6 +57,11 @@ export interface OllamaLocalSettings {
 export interface SettingsRecord {
   version: number;
   domainRules: DomainRule[];
+  /**
+   * Full URL prefixes: if a tab URL starts with one of these (after trim), no visit is recorded.
+   * Useful for auth/session hops (e.g. Red Hat Customer Portal primer).
+   */
+  urlLoggingExcludePrefixes: string[];
   /** Minutes between counted visits for the same page (debounce window). */
   visitDedupeMinutes: number;
   /** Master switch: hide summarisation UI and block requests. */
@@ -76,6 +81,9 @@ export const DEFAULT_SETTINGS: SettingsRecord = {
     { id: "ex1", pattern: "redhat.atlassian.net", enabled: true },
     { id: "ex2", pattern: "*.sharepoint.com", enabled: true },
     { id: "ex3", pattern: "docs.redhat.com", enabled: true },
+  ],
+  urlLoggingExcludePrefixes: [
+    "https://access.redhat.com/services/primer/session/scribe/?redirectTo=",
   ],
   visitDedupeMinutes: 5,
   summarizationEnabled: true,
