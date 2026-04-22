@@ -1,3 +1,4 @@
+import { consolidateTabsByClassifiedSite } from "../lib/tab-session/group-tabs-by-site";
 import { hostMatchesRules } from "../lib/allowlist";
 import { canonicalizeUrl } from "../lib/canonicalize";
 import { shouldCountNewVisit } from "../lib/dedupe";
@@ -510,6 +511,18 @@ chrome.runtime.onMessage.addListener((message: { type: string; [k: string]: unkn
     }
     if (message.type === "TEST_LLM_CONNECTION") {
       void testLlmFromSettings().then(sendResponse);
+      return true;
+    }
+    if (message.type === "CONSOLIDATE_TABS_BY_SITE") {
+      const m = message as unknown as { windowId: number };
+      void consolidateTabsByClassifiedSite(m.windowId)
+        .then(sendResponse)
+        .catch((e: unknown) =>
+          sendResponse({
+            ok: false,
+            error: e instanceof Error ? e.message : String(e),
+          }),
+        );
       return true;
     }
     return false;

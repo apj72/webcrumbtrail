@@ -94,6 +94,34 @@ function App() {
     void chrome.tabs.create({ url });
   };
 
+  const consolidateTabsIntoThisWindow = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const tab = await getActiveTabInLastFocusedNormalWindow();
+      if (tab?.windowId == null) {
+        setMsg("Could not detect the focused window. Click the page you want to consolidate into, then try again.");
+        return;
+      }
+      const r: { ok?: boolean; tabCount?: number; groupCount?: number; error?: string } =
+        await chrome.runtime.sendMessage({
+          type: "CONSOLIDATE_TABS_BY_SITE",
+          windowId: tab.windowId,
+        });
+      if (r?.ok) {
+        setMsg(
+          `Moved ${r.tabCount ?? 0} tab(s); created ${r.groupCount ?? 0} group(s). Pinned and internal tabs were not changed.`,
+        );
+      } else {
+        setMsg(r?.error?.trim() ? r.error : "Could not consolidate tabs.");
+      }
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openSettings = () => {
     void chrome.runtime.openOptionsPage();
   };
@@ -276,6 +304,19 @@ function App() {
         </button>
         <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
           Group open windows by site (Jira, Docs, Red Hat, …), log snapshots, bulk-close selected tabs.
+        </p>
+        <button
+          type="button"
+          className="secondary"
+          disabled={busy}
+          onClick={() => void consolidateTabsIntoThisWindow()}
+          style={{ width: "100%", marginTop: 8 }}
+        >
+          Consolidate tabs here (by site type)
+        </button>
+        <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
+          Moves unpinned http(s) tabs from all normal windows (same profile / incognito mode) into this window, ordered like
+          the session overview, then creates Chrome tab groups where there are 2+ tabs. Pinned tabs stay put.
         </p>
       </div>
 

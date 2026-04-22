@@ -14,6 +14,8 @@ npm run build
 
 Load the unpacked extension from `dist/` (Developer mode → Load unpacked → choose this repo’s `extension/dist` folder).
 
+**Tab consolidation** uses the `tabGroups` permission so the extension can create named groups after moving tabs; rebuild and reload the extension after updates so the manifest stays in sync.
+
 ## First-time configuration
 
 Open WebCrumbTrail → Settings from the popup or the extensions list. Add hostnames under Domain allowlist (exact or `*.suffix` patterns) and save. Configure summarisation if you want API or Ollama summaries; otherwise you can rely on the manual web-chat flow in the popup.
@@ -72,7 +74,7 @@ Visit data stays on disk unless you use cloud API summarisation, in which case p
 | Path | Role |
 |------|------|
 | `src/background/` | Service worker |
-| `src/lib/` | Allowlist, URLs, storage, LLM helpers |
+| `src/lib/` | Allowlist, URLs, storage, LLM helpers, tab-session helpers (`classify-tab`, `group-tabs-by-site`) |
 | `src/popup`, `src/options`, `src/report` | React UI |
 | `public/manifest.json` | Copied into `dist` |
 | `public/rules/ollama_cors.json` | DNR rules: `Origin` header for default local Ollama port |

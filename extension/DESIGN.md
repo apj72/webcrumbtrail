@@ -35,8 +35,12 @@ For an existing page, a **new `VisitEvent`** is recorded only if `shouldCountNew
 ## Security / permissions
 
 - `host_permissions: <all_urls>` — required to read tab URLs for allowlist filtering and to inject the extraction script on user-initiated summary.
-- `storage`, `tabs`, `windows`, `scripting`, `contextMenus` — settings, tab access, **last-focused normal window** for “current tab” resolution, new window from report, script injection, optional menu.
+- `storage`, `tabs`, `tabGroups`, `windows`, `scripting`, `contextMenus` — settings; tab access; **Chrome tab groups** for the optional “consolidate tabs by site type” action; **last-focused normal window** for “current tab” resolution; new window from report; script injection; optional menu.
 - `declarativeNetRequest` — static rules (`public/rules/ollama_cors.json`) that set `Origin` to `http://127.0.0.1` / `http://localhost` for `fetch` requests to the default local Ollama port **11434**, so Ollama’s CORS allowlist accepts API calls from the extension without requiring `OLLAMA_ORIGINS` on the server for that case.
+
+## Tab consolidation (popup)
+
+`CONSOLIDATE_TABS_BY_SITE` in the service worker calls `consolidateTabsByClassifiedSite(targetWindowId)`. Eligible tabs are unpinned, `http`/`https`, and not classified as browser-internal in `classify-tab.ts`. Tabs are bucketed with the same rules as the session overview (`sortOrder` then label), sorted by title within a bucket, moved in one `chrome.tabs.move` into the target window after that window’s pinned tabs, then `chrome.tabs.group` + `chrome.tabGroups.update` for buckets with at least two tabs. Incognito vs normal windows are not mixed.
 
 ## Future (Phase 3 hints)
 

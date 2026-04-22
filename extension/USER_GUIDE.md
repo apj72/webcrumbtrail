@@ -116,6 +116,8 @@ Open the popup by clicking the WebCrumbTrail toolbar icon on a normal webpage.
 
 - **Header:** **WebCrumbTrail** and a **Settings** button (opens the full options page).
 - **Open report viewer:** Opens the report in a new tab (filters, CSV/JSON, detail pane).
+- **Session overview (all tabs):** Opens a page that lists every open tab grouped by site type (Jira, Google Docs, Red Hat properties, etc.), with snapshot and bulk-close helpers.
+- **Consolidate tabs here (by site type):** Puts unpinned web tabs from **all normal windows** that share the same **incognito mode** as your focused window into **that** window. Tabs are ordered using the **same categories** as the session overview (not raw hostname only), then **title** within each category. Categories with **two or more** tabs become **Chrome tab groups** with the overview label. **Pinned** tabs stay where they are; `chrome://`, extension pages, and empty new tabs are skipped. Focus the window you want to become the single “hub” before opening the popup, then click this button.
 - **Allowlist status:** A badge such as **Tracked domain** or **Not on allowlist**, plus the canonical URL and (when tracked) title and visit timestamps.
 - **Add this domain to allowlist & log page:** Adds the current hostname and logs this visit (http/https only).
 - **Summarised / Not summarised yet:** Shows whether a completed summary exists and the raw **summary status** when not.

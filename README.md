@@ -34,6 +34,11 @@ Options
 
 - Edit the allowlist, dedupe interval, summarisation provider (OpenAI, Gemini, or Ollama), endpoints, and Incognito behaviour.
 
+Session tools
+
+- **Session overview** (from the popup) lists open tabs grouped by site type (Jira, Google Docs, and so on).
+- **Consolidate tabs here (by site type)** moves unpinned `http`/`https` tabs from all normal windows in the same profile (and same incognito mode as the focused window) into the focused window, ordered like the session overview, then creates Chrome **tab groups** where a type has two or more tabs. Pinned tabs and internal pages are left unchanged.
+
 Other
 
 - Context menu entry to request a summary for the current page (when summarisation is enabled).
