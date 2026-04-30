@@ -62,13 +62,11 @@ const GROUP_COLORS: chrome.tabGroups.ColorEnum[] = [
   "yellow",
 ];
 
-/**
- * Moves all eligible tabs (same incognito mode as the target) into `targetWindowId`, ordered by
- * classified site type (Jira, Google Docs, …) then tab title. Creates Chrome tab groups for types
- * with 2+ tabs. Skips pinned tabs and internal / non-http tabs.
- */
-export async function consolidateTabsByClassifiedSite(
+export type ConsolidateTabsScope = "focused_window_only" | "all_normal_windows_same_incognito";
+
+async function consolidateTabsByClassifiedSiteImpl(
   targetWindowId: number,
+  scope: ConsolidateTabsScope,
 ): Promise<{ ok: true; tabCount: number; groupCount: number } | { ok: false; error: string }> {
   let targetWindow: chrome.windows.Window;
   try {
@@ -84,13 +82,22 @@ export async function consolidateTabsByClassifiedSite(
   }
   const targetIncognito = targetWindow.incognito ?? false;
 
-  const windows = await chrome.windows.getAll({ populate: true, windowTypes: ["normal"] });
   const eligible: chrome.tabs.Tab[] = [];
-  for (const w of windows) {
-    if (!w.tabs || (w.incognito ?? false) !== targetIncognito) continue;
-    for (const tab of w.tabs) {
+
+  if (scope === "focused_window_only") {
+    const tabsInTarget = await chrome.tabs.query({ windowId: targetWindowId });
+    for (const tab of tabsInTarget) {
       if (tab.id == null) continue;
       if (tabIsEligibleForSiteConsolidation(tab)) eligible.push(tab);
+    }
+  } else {
+    const windows = await chrome.windows.getAll({ populate: true, windowTypes: ["normal"] });
+    for (const w of windows) {
+      if (!w.tabs || (w.incognito ?? false) !== targetIncognito) continue;
+      for (const tab of w.tabs) {
+        if (tab.id == null) continue;
+        if (tabIsEligibleForSiteConsolidation(tab)) eligible.push(tab);
+      }
     }
   }
 
@@ -135,4 +142,19 @@ export async function consolidateTabsByClassifiedSite(
   }
 
   return { ok: true, tabCount: orderedIds.length, groupCount };
+}
+
+/**
+ * Reorders and groups **only tabs in `targetWindowId`**. Other windows unchanged.
+ */
+export async function consolidateTabsByClassifiedSite(targetWindowId: number) {
+  return consolidateTabsByClassifiedSiteImpl(targetWindowId, "focused_window_only");
+}
+
+/**
+ * Gathers eligible tabs from **all normal windows** matching the target window’s incognito mode,
+ * moves them into `targetWindowId`, then groups/reorders like the session overview.
+ */
+export async function consolidateTabsByClassifiedSiteAcrossWindows(targetWindowId: number) {
+  return consolidateTabsByClassifiedSiteImpl(targetWindowId, "all_normal_windows_same_incognito");
 }

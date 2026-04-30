@@ -118,6 +118,7 @@ function App() {
   const [search, setSearch] = useState("");
   const [domainFilter, setDomainFilter] = useState("");
   const [summaryFilter, setSummaryFilter] = useState<SummaryStatus | "">("");
+  const [readingListFilter, setReadingListFilter] = useState<"all" | "later" | "not_later">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("last_seen_at");
@@ -129,6 +130,8 @@ function App() {
   const [manualDesc, setManualDesc] = useState("");
   const [pastedReply, setPastedReply] = useState("");
   const [apiProvider, setApiProvider] = useState<SummarizationProvider>("openai");
+  /** End ms of last committed Chrome history incremental export (for display). */
+  const [historyExportWatermark, setHistoryExportWatermark] = useState<number | null>(null);
   /** Must be turned on before Delete buttons work (default off). */
   const [deleteControlsEnabled, setDeleteControlsEnabled] = useState(false);
   /** Page IDs marked for bulk delete (only used while delete mode is on). */
@@ -153,6 +156,7 @@ function App() {
   useEffect(() => {
     void chrome.runtime.sendMessage({ type: "GET_SETTINGS" }).then((st: SettingsRecord) => {
       setApiProvider(st.summarizationProvider ?? "openai");
+      setHistoryExportWatermark(st.lastBrowserHistoryExportEndMs ?? null);
     });
   }, []);
 
@@ -196,6 +200,8 @@ function App() {
         return false;
       if (df && p.domain !== df) return false;
       if (summaryFilter && p.summary_status !== summaryFilter) return false;
+      if (readingListFilter === "later" && p.saved_for_later !== true) return false;
+      if (readingListFilter === "not_later" && p.saved_for_later === true) return false;
       if (fromTs != null && p.last_seen_at < fromTs) return false;
       if (toTs != null && p.last_seen_at >= toTs) return false;
       return true;
@@ -209,7 +215,7 @@ function App() {
       return ((av as number) - (bv as number)) * mul;
     });
     return list;
-  }, [pages, search, domainFilter, summaryFilter, dateFrom, dateTo, sortKey, sortDir]);
+  }, [pages, search, domainFilter, summaryFilter, readingListFilter, dateFrom, dateTo, sortKey, sortDir]);
 
   const filteredIds = useMemo(() => filtered.map((p) => p.id), [filtered]);
   const allFilteredMarked =
@@ -282,6 +288,52 @@ function App() {
     a.download = `webcrumbtrail-pages-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
+  };
+
+  const exportChromeHistoryIncremental = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r: {
+        ok?: boolean;
+        json?: string;
+        commitEndMs?: number;
+        itemCount?: number;
+        startMs?: number;
+        error?: string;
+      } = await chrome.runtime.sendMessage({ type: "PREPARE_BROWSER_HISTORY_EXPORT" });
+      if (!r?.ok || r.json == null || r.commitEndMs == null || r.startMs == null) {
+        setMsg(r?.error ?? "Chrome history export failed.");
+        return;
+      }
+      const blob = new Blob([r.json], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      const d = new Date(r.commitEndMs);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}`;
+      a.download = `webcrumbtrail-chrome-history-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      const commit: { ok?: boolean; error?: string } = await chrome.runtime.sendMessage({
+        type: "COMMIT_BROWSER_HISTORY_EXPORT",
+        endMs: r.commitEndMs,
+      });
+      if (!commit?.ok) {
+        setMsg(
+          `Downloaded ${r.itemCount ?? 0} URL(s), but watermark was not saved: ${commit?.error ?? "unknown error"}.`,
+        );
+        return;
+      }
+      setHistoryExportWatermark(r.commitEndMs);
+      setMsg(
+        `Chrome history: ${r.itemCount ?? 0} URL(s) from ${formatTime(r.startMs)} to ${formatTime(r.commitEndMs)}. Watermark saved.`,
+      );
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const openOriginal = (url: string) => {
@@ -503,6 +555,31 @@ function App() {
             Export CSV (filtered)
           </button>
           </div>
+          <div
+            className="card"
+            style={{
+              marginTop: 12,
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "var(--surface)",
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Chrome history backup (incremental)</div>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 8px" }}>
+              Exports the browser’s native history as JSON (all sites). The first export includes from{" "}
+              <span className="mono">1 May 2025</span> (local midnight) through now; the next export only adds entries after
+              the last successful export. Files are for your own backup (e.g. frequency / load-out tools); WebCrumbTrail does not
+              import them.
+            </p>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 8px" }}>
+              Last export end:{" "}
+              <strong>{historyExportWatermark != null ? formatTime(historyExportWatermark) : "— (none yet)"}</strong>
+            </p>
+            <button type="button" className="secondary" disabled={busy} onClick={() => void exportChromeHistoryIncremental()}>
+              Download incremental Chrome history (JSON)
+            </button>
+          </div>
         </header>
 
         <div
@@ -531,6 +608,19 @@ function App() {
                   {d}
                 </option>
               ))}
+            </select>
+          </label>
+          <label>
+            Reading list
+            <select
+              value={readingListFilter}
+              onChange={(e) => setReadingListFilter(e.target.value as "all" | "later" | "not_later")}
+              style={{ width: "100%" }}
+              title='Use “Later only” for your save-for-later / reading list URLs'
+            >
+              <option value="all">All rows</option>
+              <option value="later">Later only (saved without allowlist)</option>
+              <option value="not_later">Exclude reading list saves</option>
             </select>
           </label>
           <label>
@@ -584,6 +674,7 @@ function App() {
                     />
                   </th>
                 )}
+                <th style={{ padding: "6px 8px", width: 72 }}>Later</th>
                 <th style={{ padding: "6px 8px" }}>Title</th>
                 <th style={{ padding: "6px 8px", minWidth: 200 }}>Summary</th>
                 <th style={{ padding: "6px 8px" }}>Domain</th>
@@ -615,6 +706,9 @@ function App() {
                       />
                     </td>
                   )}
+                  <td style={{ padding: "8px", textAlign: "center", verticalAlign: "top" }}>
+                    {p.saved_for_later === true ? "★" : ""}
+                  </td>
                   <td style={{ padding: "8px", maxWidth: 220, verticalAlign: "top" }}>{p.title || "(no title)"}</td>
                   <td style={{ padding: "8px", verticalAlign: "top" }}>
                     <SummaryCell p={p} />
@@ -684,6 +778,12 @@ function App() {
             First: {formatTime(selected.first_seen_at)} · Last: {formatTime(selected.last_seen_at)} · Visits:{" "}
             {Math.max(1, selected.visit_count)}
           </p>
+          {selected.saved_for_later === true && (
+            <p style={{ fontSize: 12, marginBottom: 10 }}>
+              <span className="badge">Reading list</span>
+              <span style={{ color: "var(--muted)", marginLeft: 8 }}>Saved with “Save page to reading list” (no allowlist).</span>
+            </p>
+          )}
           <p>
             <span className={`badge ${statusClass(selected.summary_status)}`}>{selected.summary_status}</span>
           </p>

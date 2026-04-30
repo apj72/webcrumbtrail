@@ -117,8 +117,9 @@ Open the popup by clicking the WebCrumbTrail toolbar icon on a normal webpage.
 - **Header:** **WebCrumbTrail** and a **Settings** button (opens the full options page).
 - **Open report viewer:** Opens the report in a new tab (filters, CSV/JSON, detail pane).
 - **Session overview (all tabs):** Opens a page that lists every open tab grouped by site type (Jira, Google Docs, Red Hat properties, etc.), with snapshot and bulk-close helpers.
-- **Consolidate tabs here (by site type):** Puts unpinned web tabs from **all normal windows** that share the same **incognito mode** as your focused window into **that** window. Tabs are ordered using the **same categories** as the session overview (not raw hostname only), then **title** within each category. Categories with **two or more** tabs become **Chrome tab groups** with the overview label. **Pinned** tabs stay where they are; `chrome://`, extension pages, and empty new tabs are skipped. Focus the window you want to become the single “hub” before opening the popup, then click this button.
-- **Allowlist status:** A badge such as **Tracked domain** or **Not on allowlist**, plus the canonical URL and (when tracked) title and visit timestamps.
+- **Consolidate tabs** — two buttons: **this window only** reorders unpinned web tabs in the focused window into session-style groups. **All windows → here** also pulls eligible tabs from every other normal window (same incognito/normal mode) into that window first, then groups. Pinned and internal tabs are skipped either way.
+- **Allowlist status:** Badges **Tracked domain** vs **Not on allowlist**, plus **Reading list** when this URL was saved via **Save page to reading list**, the canonical URL, and (when a row exists) title and visit timestamps.
+- **Save page to reading list:** One-off log for the current **http/https** tab **without** adding the domain to the allowlist — same IndexedDB journal with `saved_for_later` set. Use **Open report viewer** → filter **Reading list** → **Later only** for a focused list.
 - **Add this domain to allowlist & log page:** Adds the current hostname and logs this visit (http/https only).
 - **Summarised / Not summarised yet:** Shows whether a completed summary exists and the raw **summary status** when not.
 - **API summary:** **Request … summary** / **Refresh … summary** operate on the **currently focused tab** (the page behind the popup). Use **Refresh** after a completed summary to replace it; a plain **Request** may be rejected if a summary is already completed.
@@ -206,6 +207,7 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 - **Export JSON** — full backup of stored data.
 - **Import JSON** — restores from a file; the current implementation **replaces** existing **pages** and **visits** in IndexedDB, then loads the bundle (settings in the file are applied as part of import—use only trusted backups).
 - **Export CSV (filtered)** — exports rows that match the **current filters**, not necessarily the whole database.
+- **Chrome history backup (incremental)** — **Download incremental Chrome history (JSON)** reads Chrome’s built-in history (not WebCrumbTrail’s journal). The extension requests the **`history`** permission for this. The **first** successful export covers from **1 May 2025** (local midnight) through the moment you run it; each later export covers only **after the end time of the previous successful export** through now. The report shows **Last export end** after a successful run. Save files wherever you keep backups; WebCrumbTrail does **not** import these JSON files (use them with your own scripts, e.g. “most visited” / startup load-outs). If the download succeeds but saving the watermark fails, run again only after fixing the error so you do not skip a time range.
 
 ### Top bar — default (delete off)
 
@@ -223,6 +225,7 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 
 - **Search** — matches title, URL, journal title, or summary text.
 - **Domain** — restrict to one domain from your data.
+- **Reading list** — **All rows** | **Later only** (pages saved with “Save page to reading list”) | **Exclude reading list saves**.
 - **Summary status** — `not_requested`, `queued`, `completed`, `failed`, or all.
 - **From / To** — date range on **last seen** (end date is inclusive through that calendar day in the UI logic).
 - **Sort by** — last seen, first seen, visit count, domain; **Direction** ascending or descending.
@@ -241,7 +244,7 @@ Open the **report** from the popup’s **Open report viewer** (or open `report.h
 
 ### 7.3 Table
 
-Columns typically include **Title**, **Summary** (preview when completed with content; otherwise a **status badge**), **Domain**, **Visits**, **Last seen**, and **Delete** (only effective when **Enable delete** is on).
+Columns typically include **Later** (★ for reading-list saves), **Title**, **Summary** (preview when completed with content; otherwise a **status badge**), **Domain**, **Visits**, **Last seen**, and **Delete** (only effective when **Enable delete** is on).
 
 - **Queued:** Work in progress for an API summary.
 - **Failed:** The last API summary attempt failed; use **Refresh** from the popup or report detail after fixing connectivity or settings.

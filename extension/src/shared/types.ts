@@ -23,6 +23,11 @@ export interface PageRecord {
   latest_summary: string | null;
   latest_summary_updated_at: number | null;
   summary_status: SummaryStatus;
+  /**
+   * True when this row was logged via **Save for later** (reading list), not requiring an allowlisted domain visit.
+   * Sticky: normal allowlisted visits do not clear it unless the merge path drops it (consolidate duplicates).
+   */
+  saved_for_later?: boolean;
 }
 
 export interface VisitEvent {
@@ -81,6 +86,11 @@ export interface OllamaLocalSettings {
 
 export interface SettingsRecord {
   version: number;
+  /**
+   * End timestamp (ms) of the last successful Chrome history incremental export.
+   * Next export covers (lastBrowserHistoryExportEndMs + 1) … now. Null = never exported (use epoch from May 2025).
+   */
+  lastBrowserHistoryExportEndMs: number | null;
   domainRules: DomainRule[];
   /**
    * Full URL prefixes: if a tab URL starts with one of these (after trim), no visit is recorded.
@@ -101,7 +111,8 @@ export interface SettingsRecord {
 }
 
 export const DEFAULT_SETTINGS: SettingsRecord = {
-  version: 1,
+  version: 2,
+  lastBrowserHistoryExportEndMs: null,
   domainRules: [
     { id: "ex1", pattern: "redhat.atlassian.net", enabled: true },
     { id: "ex2", pattern: "*.sharepoint.com", enabled: true },

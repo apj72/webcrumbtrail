@@ -62,6 +62,7 @@ export function pagesToCsv(pages: PageRecord[]): string {
     "last_seen_at",
     "visit_count",
     "summary_status",
+    "reading_list",
   ];
   const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const rows = pages.map((p) =>
@@ -75,6 +76,7 @@ export function pagesToCsv(pages: PageRecord[]): string {
       p.last_seen_at,
       p.visit_count,
       p.summary_status,
+      p.saved_for_later === true ? "yes" : "no",
     ]
       .map((c) => (typeof c === "string" ? esc(c) : String(c)))
       .join(","),

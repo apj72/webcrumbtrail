@@ -16,6 +16,8 @@ Load the unpacked extension from `dist/` (Developer mode → Load unpacked → c
 
 **Tab consolidation** uses the `tabGroups` permission so the extension can create named groups after moving tabs; rebuild and reload the extension after updates so the manifest stays in sync.
 
+**Chrome history export** (report viewer) uses the `history` permission to read the browser’s native history for incremental JSON backups.
+
 ## First-time configuration
 
 Open WebCrumbTrail → Settings from the popup or the extensions list. Add hostnames under Domain allowlist (exact or `*.suffix` patterns) and save. Configure summarisation if you want API or Ollama summaries; otherwise you can rely on the manual web-chat flow in the popup.

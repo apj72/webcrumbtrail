@@ -35,12 +35,16 @@ For an existing page, a **new `VisitEvent`** is recorded only if `shouldCountNew
 ## Security / permissions
 
 - `host_permissions: <all_urls>` — required to read tab URLs for allowlist filtering and to inject the extraction script on user-initiated summary.
-- `storage`, `tabs`, `tabGroups`, `windows`, `scripting`, `contextMenus` — settings; tab access; **Chrome tab groups** for the optional “consolidate tabs by site type” action; **last-focused normal window** for “current tab” resolution; new window from report; script injection; optional menu.
+- `storage`, `tabs`, `tabGroups`, `history`, `windows`, `scripting`, `contextMenus` — settings; tab access; **Chrome tab groups** for the optional “consolidate tabs by site type” action; **read native Chrome history** for optional incremental JSON backups (report page); **last-focused normal window** for “current tab” resolution; new window from report; script injection; optional menu.
 - `declarativeNetRequest` — static rules (`public/rules/ollama_cors.json`) that set `Origin` to `http://127.0.0.1` / `http://localhost` for `fetch` requests to the default local Ollama port **11434**, so Ollama’s CORS allowlist accepts API calls from the extension without requiring `OLLAMA_ORIGINS` on the server for that case.
 
 ## Tab consolidation (popup)
 
-`CONSOLIDATE_TABS_BY_SITE` in the service worker calls `consolidateTabsByClassifiedSite(targetWindowId)`. Eligible tabs are unpinned, `http`/`https`, and not classified as browser-internal in `classify-tab.ts`. Tabs are bucketed with the same rules as the session overview (`sortOrder` then label), sorted by title within a bucket, moved in one `chrome.tabs.move` into the target window after that window’s pinned tabs, then `chrome.tabs.group` + `chrome.tabGroups.update` for buckets with at least two tabs. Incognito vs normal windows are not mixed.
+`CONSOLIDATE_TABS_BY_SITE` with `scope`: **`focused_window`** (default when omitted: only tabs already in `targetWindowId`) or **`all_normal`** (`consolidateTabsByClassifiedSiteAcrossWindows` — all normal windows sharing the target’s incognito mode). Bucketing and tab groups behave the same (`classify-tab.ts`, after pinned tabs).
+
+## Chrome history backup (report)
+
+`PREPARE_BROWSER_HISTORY_EXPORT` / `COMMIT_BROWSER_HISTORY_EXPORT`: paged `chrome.history.search` over `[nextStart, now]`, where `nextStart` is **1 May 2025 (local midnight)** if `lastBrowserHistoryExportEndMs` is unset, else **last commit + 1 ms**. The UI downloads JSON, then commits the watermark so the next run is strictly incremental. Export files are not imported into IndexedDB.
 
 ## Future (Phase 3 hints)
 

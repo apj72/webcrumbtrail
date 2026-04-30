@@ -188,6 +188,34 @@ export async function getPageByGoogleWorkspaceDocKey(
 }
 
 /**
+ * Single lookup for an existing journal row (canonical, SharePoint title rollup, Google file id rollup).
+ * Used for page status, save-for-later, and summaries.
+ */
+export async function findPageRecordForJournalUrl(
+  db: IDBPDatabase<JournalDB>,
+  url: string,
+  tabTitle: string,
+): Promise<PageRecord | undefined> {
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+  const canonical = canonicalizeUrl(url);
+  let page = await getPageByCanonical(db, canonical);
+  const titleKey = normalizeTitleForRollup(tabTitle || "");
+  if (!page && titleKey && hostnameIsSharePoint(hostname)) {
+    page = await getPageByDomainAndTitleKey(db, hostname, titleKey);
+  }
+  const docKey = googleWorkspaceDocumentRollupKey(url);
+  if (!page && docKey) {
+    page = await getPageByGoogleWorkspaceDocKey(db, docKey);
+  }
+  return page;
+}
+
+/**
  * Merge pages that share the same normalized title on SharePoint hosts: re-point visits to the
  * oldest row and delete duplicates. Safe to run repeatedly (idempotent).
  */
@@ -237,6 +265,7 @@ export async function mergeSharePointPagesByNormalizedTitle(
 
     const mergedPrimary: PageRecord = {
       ...primary,
+      saved_for_later: arr.some((p) => p.saved_for_later === true) ? true : undefined,
       first_seen_at: minFirst,
       last_seen_at: maxLast,
       title: latest.title || primary.title,
@@ -309,6 +338,7 @@ export async function mergeGoogleWorkspaceDocsByRollupKey(
 
     const mergedPrimary: PageRecord = {
       ...primary,
+      saved_for_later: arr.some((p) => p.saved_for_later === true) ? true : undefined,
       first_seen_at: minFirst,
       last_seen_at: maxLast,
       title: latest.title || primary.title,

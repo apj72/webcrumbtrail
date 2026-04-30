@@ -1,4 +1,12 @@
-import { consolidateTabsByClassifiedSite } from "../lib/tab-session/group-tabs-by-site";
+import {
+  buildBrowserHistoryExportFile,
+  nextHistoryExportStartMs,
+  searchHistoryPaged,
+} from "../lib/browser-history-export";
+import {
+  consolidateTabsByClassifiedSite,
+  consolidateTabsByClassifiedSiteAcrossWindows,
+} from "../lib/tab-session/group-tabs-by-site";
 import { hostMatchesRules } from "../lib/allowlist";
 import { canonicalizeUrl } from "../lib/canonicalize";
 import { shouldCountNewVisit } from "../lib/dedupe";
@@ -8,6 +16,8 @@ import { buildChatGptJournalDocument, MANUAL_JOURNAL_PAGE_CHAR_BUDGET } from "..
 import { googleWorkspaceDocumentRollupKey } from "../lib/google-workspace-url";
 import { hostnameIsSharePoint, normalizeTitleForRollup } from "../lib/page-rollup";
 import {
+  addVisit,
+  findPageRecordForJournalUrl,
   getDB,
   getLastVisitForPage,
   getPageByCanonical,
@@ -16,7 +26,6 @@ import {
   getPageById,
   mergeRollupDuplicatePages,
   putPage,
-  addVisit,
 } from "../lib/storage/idb";
 import { loadSettings, saveSettings } from "../lib/storage/settings";
 import { exportAll } from "../lib/storage/export-import";
@@ -329,21 +338,90 @@ async function pageStatusForUrl(url: string, tabTitle?: string): Promise<MsgPage
   }
   const allowed = hostMatchesRules(hostname, settings.domainRules);
   const canonical = canonicalizeUrl(url);
-  if (!allowed) {
-    return { allowed: false, canonical_url: canonical, page: null };
-  }
   const db = await getDB();
-  const domain = hostname.toLowerCase();
-  let page = await getPageByCanonical(db, canonical);
-  const stKey = normalizeTitleForRollup(tabTitle ?? "");
-  if (!page && stKey && hostnameIsSharePoint(domain)) {
-    page = await getPageByDomainAndTitleKey(db, domain, stKey);
+  const page = await findPageRecordForJournalUrl(db, url, tabTitle ?? "");
+  return { allowed, canonical_url: canonical, page: page ?? null };
+}
+
+async function savePageForLater(tabId: number): Promise<{ ok: true } | { ok: false; error: string }> {
+  const settings = await loadSettings();
+  let tab: chrome.tabs.Tab;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch {
+    return { ok: false, error: "Could not read that tab. Focus the page and try again." };
   }
-  const statusDocKey = googleWorkspaceDocumentRollupKey(url);
-  if (!page && statusDocKey) {
-    page = await getPageByGoogleWorkspaceDocKey(db, statusDocKey);
+  const incognito = tab.incognito ?? false;
+  if (incognito && !settings.allowIncognitoLogging) {
+    return {
+      ok: false,
+      error: "Incognito saves are disabled — enable “Allow incognito logging” in Settings or use a normal window.",
+    };
   }
-  return { allowed: true, canonical_url: canonical, page: page ?? null };
+  const url = await resolveHttpTabUrl(tab, tabId);
+  if (!url.startsWith("http")) {
+    return { ok: false, error: "Only http(s) pages can be saved to the reading list." };
+  }
+
+  const title = tab.title ?? "";
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    return { ok: false, error: "Invalid URL." };
+  }
+  const domain = hostname;
+  const canonical = canonicalizeUrl(url);
+  const now = Date.now();
+  const db = await getDB();
+
+  let page = await findPageRecordForJournalUrl(db, url, title);
+  if (!page) {
+    const id = crypto.randomUUID();
+    page = {
+      id,
+      canonical_url: canonical,
+      original_url: url,
+      domain,
+      title: title || "(no title)",
+      first_seen_at: now,
+      last_seen_at: now,
+      visit_count: 1,
+      content_hash: null,
+      summary_title: null,
+      latest_summary: null,
+      latest_summary_updated_at: null,
+      summary_status: "not_requested",
+      saved_for_later: true,
+    };
+    await putPage(db, page);
+    await addVisit(db, {
+      id: crypto.randomUUID(),
+      page_id: page.id,
+      visited_at: now,
+      title_at_visit: title || "(no title)",
+    });
+    return { ok: true };
+  }
+
+  page.saved_for_later = true;
+  page.title = title || page.title;
+  page.last_seen_at = now;
+  page.original_url = url;
+
+  const lastVisit = await getLastVisitForPage(db, page.id);
+  if (shouldCountNewVisit(lastVisit?.visited_at, now, settings.visitDedupeMinutes)) {
+    page.visit_count += 1;
+    await addVisit(db, {
+      id: crypto.randomUUID(),
+      page_id: page.id,
+      visited_at: now,
+      title_at_visit: title || page.title,
+    });
+  }
+
+  await putPage(db, page);
+  return { ok: true };
 }
 
 async function buildChatGptPromptForTab(
@@ -368,6 +446,42 @@ async function buildChatGptPromptForTab(
     visibleText: text ?? "",
   });
   return { ok: true, document };
+}
+
+async function prepareBrowserHistoryExport(): Promise<
+  | { ok: true; json: string; commitEndMs: number; itemCount: number; startMs: number }
+  | { ok: false; error: string }
+> {
+  const settings = await loadSettings();
+  const startMs = nextHistoryExportStartMs(settings.lastBrowserHistoryExportEndMs);
+  const endMs = Date.now();
+  if (startMs > endMs) {
+    return { ok: false, error: "Export window is empty (check system clock)." };
+  }
+  try {
+    const items = await searchHistoryPaged(startMs, endMs);
+    const preparedAt = Date.now();
+    const file = buildBrowserHistoryExportFile({
+      items,
+      startTime: startMs,
+      endTime: endMs,
+      preparedAt,
+    });
+    return {
+      ok: true,
+      json: JSON.stringify(file, null, 2),
+      commitEndMs: endMs,
+      itemCount: items.length,
+      startMs,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function commitBrowserHistoryExport(endMs: number): Promise<void> {
+  const settings = await loadSettings();
+  await saveSettings({ ...settings, lastBrowserHistoryExportEndMs: endMs });
 }
 
 async function testLlmFromSettings(): Promise<{ ok: boolean; preview?: string; provider?: string; error?: string }> {
@@ -476,6 +590,15 @@ chrome.runtime.onMessage.addListener((message: { type: string; [k: string]: unkn
         );
       return true;
     }
+    if (message.type === "SAVE_PAGE_FOR_LATER") {
+      const m = message as unknown as { tabId: number };
+      void savePageForLater(m.tabId)
+        .then(sendResponse)
+        .catch((e: unknown) =>
+          sendResponse({ ok: false, error: e instanceof Error ? e.message : String(e) }),
+        );
+      return true;
+    }
     if (message.type === "REQUEST_SUMMARY") {
       const m = message as unknown as { tabId: number; refresh: boolean };
       void runSummaryForTab(m.tabId, m.refresh).then(sendResponse);
@@ -514,14 +637,31 @@ chrome.runtime.onMessage.addListener((message: { type: string; [k: string]: unkn
       return true;
     }
     if (message.type === "CONSOLIDATE_TABS_BY_SITE") {
-      const m = message as unknown as { windowId: number };
-      void consolidateTabsByClassifiedSite(m.windowId)
+      const m = message as unknown as { windowId: number; scope?: "focused_window" | "all_normal" };
+      const run =
+        m.scope === "all_normal"
+          ? consolidateTabsByClassifiedSiteAcrossWindows(m.windowId)
+          : consolidateTabsByClassifiedSite(m.windowId);
+      void run
         .then(sendResponse)
         .catch((e: unknown) =>
           sendResponse({
             ok: false,
             error: e instanceof Error ? e.message : String(e),
           }),
+        );
+      return true;
+    }
+    if (message.type === "PREPARE_BROWSER_HISTORY_EXPORT") {
+      void prepareBrowserHistoryExport().then(sendResponse);
+      return true;
+    }
+    if (message.type === "COMMIT_BROWSER_HISTORY_EXPORT") {
+      const m = message as unknown as { endMs: number };
+      void commitBrowserHistoryExport(m.endMs)
+        .then(() => sendResponse({ ok: true }))
+        .catch((e: unknown) =>
+          sendResponse({ ok: false, error: e instanceof Error ? e.message : String(e) }),
         );
       return true;
     }

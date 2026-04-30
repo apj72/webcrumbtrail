@@ -15,6 +15,7 @@ type PageLite = {
   summary_title?: string | null;
   latest_summary?: string | null;
   latest_summary_updated_at?: number | null;
+  saved_for_later?: boolean;
 };
 
 type Status = {
@@ -39,6 +40,10 @@ function App() {
   const [pastedReply, setPastedReply] = useState("");
   const [lastPrompt, setLastPrompt] = useState<string | null>(null);
   const [apiProvider, setApiProvider] = useState<SummarizationProvider>("openai");
+  /** Report & exports panel: default collapsed. */
+  const [reportExportsOpen, setReportExportsOpen] = useState(false);
+  /** Manual journal (web chat) panel: default collapsed. */
+  const [manualJournalOpen, setManualJournalOpen] = useState(false);
 
   const loadSettings = async () => {
     const st: SettingsRecord = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" });
@@ -94,7 +99,7 @@ function App() {
     void chrome.tabs.create({ url });
   };
 
-  const consolidateTabsIntoThisWindow = async () => {
+  const consolidateTabsIntoThisWindow = async (scope: "focused_window" | "all_normal") => {
     setBusy(true);
     setMsg(null);
     try {
@@ -107,10 +112,13 @@ function App() {
         await chrome.runtime.sendMessage({
           type: "CONSOLIDATE_TABS_BY_SITE",
           windowId: tab.windowId,
+          scope,
         });
       if (r?.ok) {
         setMsg(
-          `Moved ${r.tabCount ?? 0} tab(s); created ${r.groupCount ?? 0} group(s). Pinned and internal tabs were not changed.`,
+          scope === "all_normal"
+            ? `Moved ${r.tabCount ?? 0} tab(s) from all matching windows here; ${r.groupCount ?? 0} group(s). Same incognito mode only; pinned/internal skipped.`
+            : `In this window only: ${r.tabCount ?? 0} tab(s); ${r.groupCount ?? 0} group(s). Other windows unchanged; pinned/internal skipped.`,
         );
       } else {
         setMsg(r?.error?.trim() ? r.error : "Could not consolidate tabs.");
@@ -124,6 +132,30 @@ function App() {
 
   const openSettings = () => {
     void chrome.runtime.openOptionsPage();
+  };
+
+  const savePageForLaterAction = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const tab = await getActiveTabInLastFocusedNormalWindow();
+      if (!tab?.id) {
+        setMsg("Could not detect the active tab.");
+        return;
+      }
+      const r: { ok?: boolean; error?: string } = await chrome.runtime.sendMessage({
+        type: "SAVE_PAGE_FOR_LATER",
+        tabId: tab.id,
+      });
+      if (r?.ok) {
+        setMsg("Saved to reading list. Filter the report by “Reading list” to see it.");
+      } else {
+        setMsg(r?.error?.trim() ? r.error : "Could not save.");
+      }
+      await load();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const requestSummary = async (refresh: boolean) => {
@@ -233,6 +265,11 @@ function App() {
     p && p.summary_status === "completed" && !!(p.latest_summary?.trim() || p.summary_title?.trim());
   const summarisedAt = p?.latest_summary_updated_at;
 
+  const journalActionsEnabled =
+    tabId !== null && !!activeTabUrl?.startsWith("http") && (status.allowed || p !== null);
+
+  const canSaveForLater = tabId !== null && !!activeTabUrl?.startsWith("http");
+
   const canAddDomain = tabId != null && !!activeTabUrl?.startsWith("http") && !status.allowed;
 
   let allowlistHostname = "";
@@ -292,42 +329,77 @@ function App() {
           background: "rgba(59, 130, 246, 0.06)",
         }}
       >
-        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>Report &amp; exports</div>
-        <button type="button" onClick={openReport} style={{ width: "100%" }}>
-          Open report viewer
-        </button>
-        <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
-          Browse logged pages, filters, CSV/JSON, and manual journal paste — separate from visit logging on this tab.
-        </p>
-        <button type="button" className="secondary" onClick={openSessionOverview} style={{ width: "100%", marginTop: 8 }}>
-          Session overview (all tabs)
-        </button>
-        <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
-          Group open windows by site (Jira, Docs, Red Hat, …), log snapshots, bulk-close selected tabs.
-        </p>
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy}
-          onClick={() => void consolidateTabsIntoThisWindow()}
-          style={{ width: "100%", marginTop: 8 }}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+          }}
         >
-          Consolidate tabs here (by site type)
-        </button>
-        <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
-          Moves unpinned http(s) tabs from all normal windows (same profile / incognito mode) into this window, ordered like
-          the session overview, then creates Chrome tab groups where there are 2+ tabs. Pinned tabs stay put.
-        </p>
+          <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>Report &amp; exports</div>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setReportExportsOpen((v) => !v)}
+            aria-expanded={reportExportsOpen}
+            style={{ padding: "0.25rem 0.55rem", fontSize: 11, flexShrink: 0 }}
+          >
+            {reportExportsOpen ? "Hide" : "Show"}
+          </button>
+        </div>
+        {reportExportsOpen && (
+          <>
+            <button type="button" onClick={openReport} style={{ width: "100%", marginTop: 10 }}>
+              Open report viewer
+            </button>
+            <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
+              Browse logged pages, filters, CSV/JSON, and manual journal paste — separate from visit logging on this tab.
+            </p>
+            <button type="button" className="secondary" onClick={openSessionOverview} style={{ width: "100%", marginTop: 8 }}>
+              Session overview (all tabs)
+            </button>
+            <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
+              Group open windows by site (Jira, Docs, Red Hat, …), log snapshots, bulk-close selected tabs.
+            </p>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => void consolidateTabsIntoThisWindow("focused_window")}
+              style={{ width: "100%", marginTop: 8 }}
+            >
+              Consolidate tabs (this window only)
+            </button>
+            <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
+              Reorders unpinned http(s) tabs in the focused window only. Other windows untouched.
+            </p>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => void consolidateTabsIntoThisWindow("all_normal")}
+              style={{ width: "100%", marginTop: 8 }}
+            >
+              Consolidate tabs (all windows → here)
+            </button>
+            <p style={{ fontSize: 11, color: "var(--muted)", margin: "8px 0 0" }}>
+              Same as above, but pulls eligible tabs from <strong>all normal windows</strong> with the same incognito/normal mode
+              into this window. Useful for one big hub; use “this window only” when keeping work threads separated.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: 10 }}>
-        <div style={{ marginBottom: 6 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginBottom: 6 }}>
           <span className="badge">{status.allowed ? "Tracked domain" : "Not on allowlist"}</span>
+          {p?.saved_for_later === true && <span className="badge">Reading list</span>}
         </div>
         <div className="mono" style={{ marginBottom: 8 }}>
           {status.canonical_url}
         </div>
-        {status.allowed && p && (
+        {p && (
           <>
             <div style={{ fontSize: 13, marginBottom: 6 }}>{p.title}</div>
             {p.summary_title && (
@@ -342,6 +414,21 @@ function App() {
         )}
         {status.allowed && !p && (
           <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>Not logged yet — navigate or reload once.</p>
+        )}
+        {canSaveForLater && (
+          <div style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void savePageForLaterAction()}
+              style={{ width: "100%" }}
+            >
+              Save page to reading list
+            </button>
+            <p style={{ color: "var(--muted)", fontSize: 11, margin: "8px 0 0" }}>
+              Logs this URL once — no domain allowlist. Appears in the report under Reading list.
+            </p>
+          </div>
         )}
         {!status.allowed && canAddDomain && (
           <div style={{ marginTop: 10 }}>
@@ -360,7 +447,7 @@ function App() {
         )}
       </div>
 
-      {status.allowed && p && (
+      {p && (
         <div
           style={{
             marginBottom: 10,
@@ -399,53 +486,79 @@ function App() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>{summarizationProviderLabel(apiProvider)} — configured in Settings</p>
-        <button type="button" disabled={busy || !status.allowed || tabId == null} onClick={() => void requestSummary(false)}>
+        <button type="button" disabled={busy || !journalActionsEnabled} onClick={() => void requestSummary(false)}>
           {apiProvider === "ollama" ? "Request Ollama summary" : apiProvider === "gemini" ? "Request Gemini summary" : "Request API summary"}
         </button>
-        <button type="button" className="secondary" disabled={busy || !status.allowed || tabId == null} onClick={() => void requestSummary(true)}>
+        <button type="button" className="secondary" disabled={busy || !journalActionsEnabled} onClick={() => void requestSummary(true)}>
           {apiProvider === "ollama" ? "Refresh Ollama summary" : apiProvider === "gemini" ? "Refresh Gemini summary" : "Refresh API summary"}
         </button>
 
-        <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "12px 0 8px" }} />
-        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px" }}>
-          <strong>Manual journal (web chat)</strong> — no API. Copies a focused excerpt (main content / Google Docs body, ~14k chars max) for a browser chat (e.g. chatgpt.com).
-        </p>
-        <button type="button" className="secondary" disabled={busy || !status.allowed || tabId == null} onClick={() => void copyChatGptPrompt()}>
-          Copy prompt for web chat
-        </button>
-        {lastPrompt && (
-          <details style={{ fontSize: 11, color: "var(--muted)" }}>
-            <summary>Show last prompt</summary>
-            <pre style={{ whiteSpace: "pre-wrap", maxHeight: 120, overflow: "auto", margin: "6px 0 0" }}>{lastPrompt.slice(0, 2000)}</pre>
-          </details>
-        )}
-        <label style={{ marginTop: 4 }}>Paste web chat reply (optional)</label>
-        <textarea
-          value={pastedReply}
-          onChange={(e) => setPastedReply(e.target.value)}
-          rows={3}
-          placeholder="Or type TITLE: / DESCRIPTION: here…"
-          style={{ width: "100%", fontSize: 12 }}
-        />
-        <button type="button" className="secondary" disabled={busy} onClick={fillFromPaste}>
-          Fill fields from pasted reply
-        </button>
-        <label>Journal title</label>
-        <input value={summaryTitle} onChange={(e) => setSummaryTitle(e.target.value)} placeholder="Short title" style={{ width: "100%" }} />
-        <label>What the page covers (1–2 sentences)</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Description" style={{ width: "100%", fontSize: 12 }} />
-        <button type="button" disabled={busy || !status.allowed || tabId == null} onClick={() => void saveManualJournal()}>
-          Save manual journal entry
-        </button>
+        <div
+          className="card"
+          style={{
+            marginTop: 8,
+            padding: "10px 12px",
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>Manual journal (web chat)</div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setManualJournalOpen((v) => !v)}
+              aria-expanded={manualJournalOpen}
+              style={{ padding: "0.25rem 0.55rem", fontSize: 11, flexShrink: 0 }}
+            >
+              {manualJournalOpen ? "Hide" : "Show"}
+            </button>
+          </div>
+          {manualJournalOpen && (
+            <>
+              <p style={{ fontSize: 12, color: "var(--muted)", margin: "10px 0 4px" }}>
+                No API — copies a focused excerpt (main content / Google Docs body, ~14k chars max) for a browser chat (e.g.
+                chatgpt.com).
+              </p>
+              <button type="button" className="secondary" disabled={busy || !journalActionsEnabled} onClick={() => void copyChatGptPrompt()}>
+                Copy prompt for web chat
+              </button>
+              {lastPrompt && (
+                <details style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
+                  <summary>Show last prompt</summary>
+                  <pre style={{ whiteSpace: "pre-wrap", maxHeight: 120, overflow: "auto", margin: "6px 0 0" }}>{lastPrompt.slice(0, 2000)}</pre>
+                </details>
+              )}
+              <label style={{ marginTop: 8, display: "block" }}>Paste web chat reply (optional)</label>
+              <textarea
+                value={pastedReply}
+                onChange={(e) => setPastedReply(e.target.value)}
+                rows={3}
+                placeholder="Or type TITLE: / DESCRIPTION: here…"
+                style={{ width: "100%", fontSize: 12 }}
+              />
+              <button type="button" className="secondary" disabled={busy} onClick={fillFromPaste}>
+                Fill fields from pasted reply
+              </button>
+              <label style={{ marginTop: 8, display: "block" }}>Journal title</label>
+              <input value={summaryTitle} onChange={(e) => setSummaryTitle(e.target.value)} placeholder="Short title" style={{ width: "100%" }} />
+              <label style={{ marginTop: 6, display: "block" }}>What the page covers (1–2 sentences)</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Description" style={{ width: "100%", fontSize: 12 }} />
+              <button type="button" disabled={busy || !journalActionsEnabled} onClick={() => void saveManualJournal()} style={{ marginTop: 8 }}>
+                Save manual journal entry
+              </button>
+              <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 10, marginBottom: 0 }}>
+                Manual flow stays in your browser chat only. API summary sends page text to{" "}
+                {apiProvider === "ollama"
+                  ? "your local Ollama"
+                  : apiProvider === "gemini"
+                    ? "Google Gemini"
+                    : "your configured API"}.
+              </p>
+            </>
+          )}
+        </div>
       </div>
-      <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 10, marginBottom: 0 }}>
-        Manual flow stays in your browser chat only. API summary sends page text to{" "}
-        {apiProvider === "ollama"
-          ? "your local Ollama"
-          : apiProvider === "gemini"
-            ? "Google Gemini"
-            : "your configured API"}.
-      </p>
     </div>
   );
 }

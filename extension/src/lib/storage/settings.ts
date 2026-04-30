@@ -28,6 +28,7 @@ function mergeDefaults(s: Partial<SettingsRecord>): SettingsRecord {
   return {
     ...DEFAULT_SETTINGS,
     ...s,
+    lastBrowserHistoryExportEndMs: s.lastBrowserHistoryExportEndMs ?? null,
     domainRules: s.domainRules?.length ? s.domainRules : [...DEFAULT_SETTINGS.domainRules],
     urlLoggingExcludePrefixes: Array.isArray(s.urlLoggingExcludePrefixes)
       ? s.urlLoggingExcludePrefixes

@@ -37,7 +37,8 @@ Options
 Session tools
 
 - **Session overview** (from the popup) lists open tabs grouped by site type (Jira, Google Docs, and so on).
-- **Consolidate tabs here (by site type)** moves unpinned `http`/`https` tabs from all normal windows in the same profile (and same incognito mode as the focused window) into the focused window, ordered like the session overview, then creates Chrome **tab groups** where a type has two or more tabs. Pinned tabs and internal pages are left unchanged.
+- **Consolidate tabs (two actions):** **This window only** reorders/group unpinned http(s) tabs in the focused browser window. **All windows → here** does the same but moves eligible tabs from every normal window (same profile, same incognito vs normal split) into the focused window—then groups. Pinned/internal tabs are skipped either way.
+- **Chrome history backup** (report viewer): incremental JSON export of the browser’s native history (all URLs), with a fixed first-run floor of **1 May 2025** and a stored watermark between runs.
 
 Other
 
